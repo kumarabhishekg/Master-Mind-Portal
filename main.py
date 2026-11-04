@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import shutil
 import os
@@ -35,6 +36,11 @@ def get_db():
     finally:
         db.close()
 
+# नया रूट: वेबसाइट खोलने पर सीधे HOME.html दिखेगा
+@app.get("/")
+def serve_home():
+    return FileResponse("HOME.html")
+
 @app.post("/api/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -53,7 +59,7 @@ async def upload_file(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        file_url = f"http://127.0.0.1:8000/storage/{unique_filename}"
+        file_url = f"https://master-mind-portal.onrender.com/storage/{unique_filename}"
         
         # डेटाबेस में सेव करें
         new_application = Application(
