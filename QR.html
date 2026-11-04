@@ -49,15 +49,18 @@
 <body>
 
 <div class="upload-card">
+    <!-- Branding -->
     <div class="brand-logo">MASTERMIND PORTAL</div>
     <div class="brand-sub">Digital Services & Quick Document Hub</div>
 
     <form id="customerUploadForm" onsubmit="handleUpload(event)">
+        <!-- Name (Optional) -->
         <div class="input-group">
             <label>Aapka Naam (Optional)</label>
             <input type="text" id="custName" placeholder="Apna naam likhein (ya khali chhod dein)">
         </div>
 
+        <!-- Color or Black & White -->
         <div class="input-group">
             <label>Print Type (Kisme print chahiye?) *</label>
             <div class="radio-group">
@@ -70,6 +73,7 @@
             </div>
         </div>
 
+        <!-- Document Upload -->
         <div class="input-group">
             <label>Document Upload (Server Storage Supported) *</label>
             <div class="file-box">
@@ -81,8 +85,10 @@
             <div id="selectedFileName"></div>
         </div>
 
+        <!-- Upload Button -->
         <button type="submit" id="submitBtn" class="submit-btn">🚀 Send to Python Server</button>
 
+        <!-- Progress Bar -->
         <div class="progress-wrapper" id="progressWrapper">
             <div class="progress-info">
                 <span id="statusText">Uploading to Server...</span>
@@ -100,13 +106,85 @@
 </div>
 
 <script>
-async function uploadFilesToServer(files, customerName, printType, interval) {
+    function showFileDetails(input) {
+        const fileNameDiv = document.getElementById("selectedFileName");
+        if (input.files && input.files.length > 0) {
+            let totalSize = 0;
+            let names = Array.from(input.files).map(f => {
+                totalSize += f.size;
+                return f.name;
+            });
+            let sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+            fileNameDiv.innerText = `✅ Selected (${input.files.length} file): ${names.join(", ")} [Total Size: ${sizeMB} MB]`;
+        } else {
+            fileNameDiv.innerText = "";
+        }
+    }
+
+    // File ko direct Base64 (DataURL) mein convert karne ka function
+    function fileToDataURL(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function handleUpload(event) {
+        event.preventDefault();
+        
+        let name = document.getElementById("custName").value.trim() || "Anonymous Customer";
+        let printTypeRadio = document.querySelector('input[name="printType"]:checked');
+        if (!printTypeRadio) {
+            alert("Kripya Print Type select karein!");
+            return;
+        }
+        let printType = printTypeRadio.value;
+        let fileInput = document.getElementById("custFile");
+        
+        if (fileInput.files.length === 0) {
+            alert("Kripya kam se kam ek file select karein!");
+            return;
+        }
+
+        document.getElementById("submitBtn").disabled = true;
+        document.getElementById("progressWrapper").style.display = "block";
+
+        let progressBar = document.getElementById("progressBar");
+        let percentText = document.getElementById("percentText");
+        let statusText = document.getElementById("statusText");
+        let timeText = document.getElementById("timeText");
+        let sizeText = document.getElementById("sizeText");
+
+        let startTime = Date.now();
+        let totalBytes = Array.from(fileInput.files).reduce((acc, f) => acc + f.size, 0);
+        let totalSizeMB = (totalBytes / (1024 * 1024)).toFixed(2);
+
+        let progress = 0;
+        let interval = setInterval(() => {
+            progress += Math.floor(Math.random() * 12) + 8;
+            if (progress > 95) progress = 95;
+
+            let elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+            let uploadedBytes = (totalBytes * (progress / 100)) / (1024 * 1024);
+
+            progressBar.style.width = progress + "%";
+            percentText.innerText = progress + "%";
+            timeText.innerText = `Time: ${elapsedTime}s`;
+            sizeText.innerText = `${uploadedBytes.toFixed(2)} MB / ${totalSizeMB} MB`;
+        }, 150);
+
+        // Actual Upload call
+        uploadFilesToServer(fileInput.files, name, printType, interval);
+    }
+
+    async function uploadFilesToServer(files, customerName, printType, interval) {
         let fileMetaList = [];
 
         for (let i = 0; i < files.length; i++) {
             let file = files[i];
             
-            // 1. Pehle file ka direct Base64 data banayein (Taaki QR C.html mein kabhi Not Found na aaye)
+            // 1. Direct Base64 DataURL banayein taaki Print Studio mein kabhi Not Found na aaye
             let directDataUrl = await fileToDataURL(file);
 
             let formData = new FormData();
@@ -117,6 +195,7 @@ async function uploadFilesToServer(files, customerName, printType, interval) {
             formData.append("description", `Print Type: ${printType}`);
 
             try {
+                // Relative URL '/api/upload' Render aur Localhost dono par kaam karega
                 await fetch("/api/upload", {
                     method: "POST",
                     body: formData
@@ -125,7 +204,7 @@ async function uploadFilesToServer(files, customerName, printType, interval) {
                 console.error("Server backup log:", err);
             }
 
-            // Print Studio ke liye directDataUrl save karein
+            // Print Studio aur Admin Queue ke liye directDataUrl save karein
             fileMetaList.push({
                 name: file.name,
                 url: directDataUrl,
@@ -142,7 +221,7 @@ async function uploadFilesToServer(files, customerName, printType, interval) {
             let fileNames = fileMetaList.map(f => f.name).join(", ");
             let applicationData = {
                 serviceName: `Quick Upload (${printType})`,
-                sender: `${customerName} (Instant Print)`,
+                sender: `${customerName} (Server Storage)`,
                 aadhaarName: customerName,
                 mobile: "Not Provided",
                 description: `Print Type: ${printType} | Files: ${fileNames}`,
@@ -159,9 +238,10 @@ async function uploadFilesToServer(files, customerName, printType, interval) {
         }
 
         setTimeout(() => {
-            alert("✅ Document successfully Instant Print Studio mein bhej diya gaya hai!");
+            alert("✅ File Unique ID ke sath Python Server par save ho gayi aur Admin Instant Print mein bhej di gayi hai!");
             let isLoggedIn = localStorage.getItem("isLoggedIn");
-            if (isLoggedIn === "true") {
+            let userSessionState = localStorage.getItem("userLoggedInSession");
+            if (isLoggedIn === "true" || userSessionState === "logged_in") {
                 window.location.href = "H login.html";
             } else {
                 window.location.href = "HOME.html";
