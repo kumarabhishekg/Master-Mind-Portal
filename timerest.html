@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Render Keep-Alive Learning Demo</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f1f5f9; color: #172033; }
+    main { width: min(92vw, 560px); padding: 28px; border-radius: 16px; background: white; box-shadow: 0 12px 36px #0f172a18; }
+    h1 { margin-top: 0; font-size: 1.6rem; }
+    p { line-height: 1.55; }
+    .note { padding: 12px 14px; border-left: 4px solid #2563eb; background: #eff6ff; border-radius: 6px; }
+    .status { margin: 18px 0; padding: 14px; min-height: 54px; border-radius: 8px; background: #f8fafc; }
+    .buttons { display: flex; gap: 10px; }
+    button { border: 0; border-radius: 8px; padding: 11px 18px; font: inherit; font-weight: 650; cursor: pointer; }
+    #start { color: white; background: #2563eb; }
+    #stop { color: #1e293b; background: #e2e8f0; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    small { display: block; margin-top: 18px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Render Keep-Alive Learning Demo</h1>
+    <p>This page sends a small GET request to this same site when you start it, then about every 7 minutes 30 seconds (twice per 15 minutes).</p>
+    <p class="note"><strong>For learning only:</strong> keep this page open while testing. Closing it or browser timer throttling stops or delays the requests. A Free Render service can still restart or sleep, so this is not an uptime guarantee.</p>
+    <div class="buttons">
+      <button id="start" type="button">Start pings</button>
+      <button id="stop" type="button" disabled>Stop</button>
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite">Stopped. No requests are being sent.</div>
+    <small>Requests are GET-only and send no form data.</small>
+  </main>
+  <script>
+    (() => {
+      const intervalMs = 7.5 * 60 * 1000;
+      const startButton = document.getElementById("start");
+      const stopButton = document.getElementById("stop");
+      const status = document.getElementById("status");
+      let running = false;
+      let timerId = null;
+      let successfulPings = 0;
+
+      function scheduleNextPing() {
+        if (running) timerId = window.setTimeout(sendPing, intervalMs);
+      }
+
+      async function sendPing() {
+        if (!running) return;
+        status.textContent = "Sending a GET request to " + window.location.origin + "/ …";
+        try {
+          const response = await fetch("/", { method: "GET", cache: "no-store" });
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          successfulPings += 1;
+          status.textContent = "Ping " + successfulPings + " succeeded at " + new Date().toLocaleTimeString() + ". Next ping in about 7 minutes 30 seconds.";
+        } catch (error) {
+          status.textContent = "Ping failed: " + error.message + ". It will retry in about 7 minutes 30 seconds.";
+        } finally {
+          scheduleNextPing();
+        }
+      }
+
+      startButton.addEventListener("click", () => {
+        if (running) return;
+        running = true;
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        sendPing();
+      });
+
+      stopButton.addEventListener("click", () => {
+        running = false;
+        window.clearTimeout(timerId);
+        timerId = null;
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        status.textContent = "Stopped. No further requests will be sent.";
+      });
+    })();
+  </script>
+</body>
+</html>
