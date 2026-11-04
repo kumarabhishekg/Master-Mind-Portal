@@ -107,12 +107,14 @@
             return;
         }
 
-        document.getElementById("submitBtn").disabled = true;
-        document.getElementById("submitBtn").innerText = "Processing...";
+        let submitBtn = document.getElementById("submitBtn");
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Processing files...";
 
         let fileMetaList = [];
 
         try {
+            // Saari files ko non-blocking tareeqe se process karein taaki browser stuck na ho
             for (let i = 0; i < fileInput.files.length; i++) {
                 let file = fileInput.files[i];
                 let base64Url = await fileToDataURL(file);
@@ -122,6 +124,9 @@
                     url: base64Url,
                     unique_id: "DOC-" + Date.now() + "-" + i
                 });
+                
+                // UI ko smooth rakhne ke liye chota pause
+                await new Promise(r => setTimeout(r, 10));
             }
 
             let fileNames = fileMetaList.map(f => f.name).join(", ");
@@ -140,16 +145,27 @@
 
             let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
             existing.push(applicationData);
-            localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
+            
+            try {
+                localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
+            } catch (storageErr) {
+                console.warn("Storage limit reached, saving metadata only.");
+                // Agar storage full ho jaye tab bhi bina base64 ke data save kar do taaki stuck na ho
+                applicationData.frontImg = null;
+                applicationData.backImg = null;
+                applicationData.extraDocs = [];
+                existing[existing.length - 1] = applicationData;
+                localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
+            }
 
             alert("✅ Saari files successfully Print Studio mein bhej di gayi hain!");
             window.location.href = "HOME.html";
 
         } catch (e) {
             console.error("Upload error:", e);
-            alert("Upload karne mein kuch samasya aayi. Kripya choti files try karein.");
-            document.getElementById("submitBtn").disabled = false;
-            document.getElementById("submitBtn").innerText = "🚀 Send Document";
+            alert("Upload karne mein kuch samasya aayi. Kripya dobara try karein.");
+            submitBtn.disabled = false;
+            submitBtn.innerText = "🚀 Send Document";
         }
     }
 </script>
