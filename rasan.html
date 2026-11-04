@@ -98,6 +98,16 @@
             <input type="file" id="m3Back" accept="image/*,.pdf">
         </div>
 
+        <div class="section-title">Family Member 4 (Optional)</div>
+        <div class="input-group">
+            <label>Member 4 Front Side</label>
+            <input type="file" id="m4Front" accept="image/*,.pdf">
+        </div>
+        <div class="input-group">
+            <label>Member 4 Back Side</label>
+            <input type="file" id="m4Back" accept="image/*,.pdf">
+        </div>
+
         <button type="submit" id="submitBtn" class="submit-btn">Submit Application (₹200)</button>
     </form>
 </div>
@@ -173,7 +183,7 @@
         formData.append("description", desc || "");
 
         try {
-            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+            let response = await fetch("/api/upload", {
                 method: "POST",
                 body: formData
             });
@@ -184,12 +194,8 @@
                 throw new Error(result.message || "Upload failed");
             }
         } catch (err) {
-            console.error("Server upload error, falling back to base64:", err);
-            return await new Promise((resolve) => {
-                let reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.readAsDataURL(file);
-            });
+            console.error("Server upload failed:", err);
+            throw new Error("Could not upload " + file.name + ". Please check your connection and try again.");
         }
     }
 
@@ -220,6 +226,8 @@
             let m2bFile = document.getElementById('m2Back').files[0];
             let m3fFile = document.getElementById('m3Front').files[0];
             let m3bFile = document.getElementById('m3Back').files[0];
+            let m4fFile = document.getElementById('m4Front').files[0];
+            let m4bFile = document.getElementById('m4Back').files[0];
 
             let appPhotoUrl = await uploadFileToServer(appPhotoFile, applicantName, "Rasan Card", mobile, "Applicant Photo");
             let passbookUrl = await uploadFileToServer(passbookFile, applicantName, "Rasan Card", mobile, "Bank Passbook");
@@ -229,6 +237,8 @@
             let m2bUrl = m2bFile ? await uploadFileToServer(m2bFile, applicantName, "Rasan Card", mobile, "Member 2 Back Side") : "";
             let m3fUrl = m3fFile ? await uploadFileToServer(m3fFile, applicantName, "Rasan Card", mobile, "Member 3 Front Side") : "";
             let m3bUrl = m3bFile ? await uploadFileToServer(m3bFile, applicantName, "Rasan Card", mobile, "Member 3 Back Side") : "";
+            let m4fUrl = m4fFile ? await uploadFileToServer(m4fFile, applicantName, "Rasan Card", mobile, "Member 4 Front Side") : "";
+            let m4bUrl = m4bFile ? await uploadFileToServer(m4bFile, applicantName, "Rasan Card", mobile, "Member 4 Back Side") : "";
 
             let fileNamesList = [
                 "Upload Applicant Photo",
@@ -240,8 +250,10 @@
             if (m2bFile) fileNamesList.push("Member 2 Back Side");
             if (m3fFile) fileNamesList.push("Member 3 Front Side");
             if (m3bFile) fileNamesList.push("Member 3 Back Side");
+            if (m4fFile) fileNamesList.push("Member 4 Front Side");
+            if (m4bFile) fileNamesList.push("Member 4 Back Side");
 
-            let extraDocsArr = [m1fUrl, m1bUrl, m2fUrl, m2bUrl, m3fUrl, m3bUrl].filter(Boolean);
+            let extraDocsArr = [m1fUrl, m1bUrl, m2fUrl, m2bUrl, m3fUrl, m3bUrl, m4fUrl, m4bUrl].filter(Boolean);
 
             let applicationData = {
                 serviceName: "Rasan Card (Fee: ₹200)",
@@ -261,11 +273,12 @@
             existingApplications.push(applicationData);
             localStorage.setItem("cscApplications", JSON.stringify(existingApplications));
 
+            submitBtn.innerText = "Submitted successfully";
             alert("Rasan Card Application Successfully Submitted (Fee: ₹200)!");
             window.location.href = "H login.html";
         } catch (error) {
             console.error(error);
-            alert("Error: Form submit karne mein samasya aayi!");
+            alert("Error: " + (error.message || "Form submit karne mein samasya aayi!"));
             submitBtn.innerText = "Submit Application (₹200)";
             submitBtn.disabled = false;
         }
