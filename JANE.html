@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Certificate Application - Mastermind Portal</title>
+
+    <style>
+        body { 
+            margin: 0px; 
+            padding: 0px; 
+            background-color: #f1f1f1;
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        div { max-width: 100%; box-sizing: border-box; }
+
+        shortcut { 
+            position: sticky; 
+            top: 0px;
+            color: red; 
+            padding: 5px 10px; 
+            font-size: 20px; 
+            font-style: italic; 
+            background-color: lightgray; 
+            display: flex; 
+            flex-wrap: wrap;
+            justify-content: space-around; 
+            align-items: center; 
+            width: 100%; 
+            box-sizing: border-box;
+            z-index: 1000;
+        }
+
+        .Mygov { height: 15px; width: auto; }
+        .g20 { height: 15px; width: auto; }
+
+        .form-container {
+            max-width: 550px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .form-container h2 { text-align: center; color: green; margin-bottom: 5px; font-size: 28px; }
+        .price-tag { text-align: center; font-size: 18px; font-weight: bold; color: #d9534f; margin-bottom: 20px; }
+        
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; font-family: Arial, sans-serif; background: #f8fafc; }
+        .input-group textarea { resize: vertical; }
+
+        .submit-btn { width: 100%; padding: 12px; background-color: green; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s ease; }
+        .submit-btn:hover { background-color: darkgreen; }
+
+        /* Current Logged-in User Box */
+        .active-user-box {
+            background-color: #e8f4fd;
+            border: 1px dashed #007bff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 15px;
+            color: #007bff;
+        }
+        .active-user-box span { font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+    
+<shortcut>
+    <a href="HOME.html" style="color: red; text-decoration: none;">MASTERMIND</a>
+    <img src="C:\Users\ACS\Desktop\mastermind\G20_India_2023_logo.svg-2-1024x563.png" class="g20">
+    <img src="C:\Users\ACS\Desktop\mastermind\Mygov.png" class="Mygov">
+    <a href="HOME.html">HOME</a> 
+    <a href="">SERVICES</a>
+    <a href="">SBI</a>
+    <a href="">About</a>
+    <a href="#" id="authLink" style="text-align: right;">LOGOUT</a>
+</shortcut>
+
+<div class="form-container">
+    <h2>Certificate Application Form</h2>
+    <div class="price-tag">💵 Service Fee / Price: <b>₹70</b></div>
+    
+    <div class="active-user-box">
+        👤 Application will be sent by:<br>
+        <span id="displaySenderName">Loading...</span>
+    </div>
+
+    <form id="certificateForm" onsubmit="return submitCertificateForm(event)">
+        <div class="input-group">
+            <label>Select Certificate Type</label>
+            <select id="serviceType" required>
+                <option value="">-- Choose Certificate --</option>
+                <option value="Caste Certificate">Caste Certificate</option>
+                <option value="Income Certificate">Income Certificate</option>
+                <option value="Domicile Certificate">Domicile Certificate</option>
+                <option value="EWS Certificate">EWS Certificate</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Name as per Aadhaar Card</label>
+            <input type="text" id="aadhaarName" placeholder="Enter full name as on Aadhaar" required>
+        </div>
+
+        <div class="input-group">
+            <label>Aadhaar Card Number (12 Digits)</label>
+            <input type="text" id="aadhaarNumber" placeholder="Enter 12 digit Aadhaar number" maxlength="12" pattern="[0-9]{12}" required>
+        </div>
+
+        <div class="input-group">
+            <label>Mobile Number (10 Digits)</label>
+            <input type="tel" id="mobile" placeholder="Enter mobile number" maxlength="10" required>
+        </div>
+
+        <div class="input-group">
+            <label>Alternate Mobile Number (Optional)</label>
+            <input type="tel" id="altMobile" placeholder="Enter alternate number (optional)" maxlength="10">
+        </div>
+
+        <div class="input-group">
+            <label>Additional Description (Optional)</label>
+            <textarea id="description" rows="3" placeholder="Koi extra information dena chahte hain toh yahan likhein..."></textarea>
+        </div>
+
+        <div class="input-group">
+            <label>Upload Aadhaar Card Front Photo (Image or PDF)</label>
+            <input type="file" id="aadhaarFront" accept="image/*,.pdf" required>
+        </div>
+
+        <div class="input-group">
+            <label>Upload Aadhaar Card Back Photo (Image or PDF)</label>
+            <input type="file" id="aadhaarBack" accept="image/*,.pdf" required>
+        </div>
+
+        <button type="submit" id="submitBtn" class="submit-btn">Submit Application (₹70)</button>
+    </form>
+</div>
+
+<script>
+    let currentSenderMobile = "";
+    let currentSenderName = "";
+
+    window.onload = function() {
+        const isLoggedin = localStorage.getItem("isLoggedIn");
+        currentSenderMobile = localStorage.getItem("loggedInUserMobile");
+        currentSenderName = localStorage.getItem("loggedInUserName");
+        const authLink = document.getElementById("authLink");
+
+        if (isLoggedin === "true" && currentSenderMobile) {
+            document.getElementById("displaySenderName").innerText = `${currentSenderName} (${currentSenderMobile})`;
+            authLink.innerText = "LOGOUT";
+            authLink.href = "#";
+            
+            authLink.onclick = function(e) {
+                e.preventDefault();
+                localStorage.removeItem("isLoggedIn");
+                localStorage.removeItem("loggedInUserName");
+                localStorage.removeItem("loggedInUserMobile");
+                alert("Logged out successfully!");
+                window.location.href = "HOME.html";
+            };
+        } else {
+            alert("Form bharne ke liye pehle Login karna zaroori hai!");
+            window.location.href = "login.html";
+        }
+    };
+
+    // Server upload helper function
+    async function uploadFileToServer(file, customerName, serviceName, mobile, desc) {
+        if (!file) return "";
+        let formData = new FormData();
+        formData.append("file", file);
+        formData.append("customer_name", customerName || "Customer");
+        formData.append("service_name", serviceName || "Certificate");
+        formData.append("mobile", mobile || "Not Provided");
+        formData.append("description", desc || "");
+
+        try {
+            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+                method: "POST",
+                body: formData
+            });
+            let result = await response.json();
+            if (result.status === "success") {
+                return result.file_url;
+            } else {
+                throw new Error(result.message || "Upload failed");
+            }
+        } catch (err) {
+            console.error("Server upload error, falling back to base64:", err);
+            return await new Promise((resolve) => {
+                let reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+
+    async function submitCertificateForm(event) {
+        event.preventDefault();
+        let submitBtn = document.getElementById("submitBtn");
+        submitBtn.innerText = "Uploading Files to Server... Please wait";
+        submitBtn.disabled = true;
+
+        var serviceName = document.getElementById("serviceType").value;
+        var aadhaarName = document.getElementById("aadhaarName").value;
+        var aadhaarNumber = document.getElementById("aadhaarNumber").value;
+        var mobile = document.getElementById("mobile").value;
+        var altMobile = document.getElementById("altMobile").value || "N/A";
+        var description = document.getElementById("description").value || "N/A";
+        
+        var mobilePattern = /^[0-9]{10}$/;
+        if (!mobilePattern.test(mobile)) {
+            alert("Kripya valid 10-digit mobile number daalein!");
+            submitBtn.innerText = "Submit Application (₹70)";
+            submitBtn.disabled = false;
+            return false;
+        }
+
+        var aadhaarPattern = /^[0-9]{12}$/;
+        if (!aadhaarPattern.test(aadhaarNumber)) {
+            alert("Kripya exact 12-digit ka valid Aadhaar number daalein!");
+            submitBtn.innerText = "Submit Application (₹70)";
+            submitBtn.disabled = false;
+            return false;
+        }
+
+        let senderInfo = currentSenderName + " (" + currentSenderMobile + ")";
+
+        try {
+            let frontFile = document.getElementById("aadhaarFront").files[0];
+            let backFile = document.getElementById("aadhaarBack").files[0];
+
+            let frontUrl = await uploadFileToServer(frontFile, aadhaarName, serviceName, mobile, "Aadhaar Front");
+            let backUrl = await uploadFileToServer(backFile, aadhaarName, serviceName, mobile, "Aadhaar Back");
+
+            let fileNamesList = [
+                "Upload Aadhaar Card Front Photo",
+                "Upload Aadhaar Card Back Photo"
+            ];
+
+            let applicationData = {
+                serviceName: serviceName + " (Fee: ₹70)",
+                sender: senderInfo,
+                aadhaarName: aadhaarName,
+                aadhaarNumber: aadhaarNumber,
+                mobile: mobile,
+                altMobile: altMobile,
+                description: description + " (Fee: ₹70)",
+                frontImg: frontUrl,
+                backImg: backUrl,
+                fileNamesList: fileNamesList,
+                date: new Date().toLocaleDateString(),
+                status: "Pending"
+            };
+
+            let existingApplications = JSON.parse(localStorage.getItem("cscApplications")) || [];
+            existingApplications.push(applicationData);
+            localStorage.setItem("cscApplications", JSON.stringify(existingApplications));
+
+            alert("Application Successfully Submitted (Fee: ₹70)!");
+            window.location.href = "H login.html";
+        } catch (error) {
+            console.error(error);
+            alert("Error: Form submit karne mein samasya aayi!");
+            submitBtn.innerText = "Submit Application (₹70)";
+            submitBtn.disabled = false;
+        }
+        return false;
+    }
+</script>
+
+</body>
+</html>

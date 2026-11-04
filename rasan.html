@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rasan Card Application - Mastermind Portal</title>
+
+    <style>
+        body { margin: 0px; padding: 0px; background-color: #f1f1f1; font-family: Arial, sans-serif; user-select: none; }
+        shortcut { position: sticky; top: 0px; color: red; padding: 5px 10px; font-size: 20px; font-style: italic; background-color: lightgray; display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; width: 100%; box-sizing: border-box; z-index: 1000; }
+        .Mygov, .g20 { height: 15px; width: auto; }
+        
+        .form-container { max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); }
+        .form-container h2 { text-align: center; color: #d35400; margin-bottom: 5px; font-size: 28px; }
+        .price-tag { text-align: center; font-size: 18px; font-weight: bold; color: #d9534f; margin-bottom: 20px; }
+        
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; background: #f8fafc; user-select: text; }
+        
+        .section-title { background: #f8f9fa; padding: 10px; border-left: 5px solid #d35400; margin-top: 30px; margin-bottom: 15px; font-weight: bold; color: #333; }
+        
+        .submit-btn { width: 100%; padding: 12px; background-color: #d35400; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s ease; margin-top: 20px; }
+        .submit-btn:hover { background-color: #a04000; }
+
+        .active-user-box { background-color: #e8f4fd; border: 1px dashed #007bff; padding: 12px; border-radius: 8px; margin-bottom: 25px; text-align: center; font-size: 15px; color: #007bff; }
+        .active-user-box span { font-weight: bold; color: #333; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    
+<shortcut>
+    <a href="HOME.html" style="color: red; text-decoration: none;">MASTERMIND</a>
+    <a href="HOME.html">HOME</a> 
+    <a href="">SERVICES</a>
+    <a href="">SBI</a>
+    <a href="">About</a>
+    <a href="#" id="authLink" style="text-align: right;">LOGOUT</a>
+    <div id="google_translate_element" style="margin-left: 15px; display: inline-block;"></div>
+</shortcut>
+
+<div class="form-container">
+    <h2>Rasan Card Form</h2>
+    <div class="price-tag">💵 Service Fee / Price: <b>₹200</b></div>
+    
+    <div class="active-user-box">
+        👤 Application will be sent by:<br>
+        <span id="displaySenderName">Loading...</span>
+    </div>
+
+    <form id="rasanForm" onsubmit="return submitRasanForm(event)">
+        <div class="input-group">
+            <label>Applicant Name (Mukhiya ka Naam)</label>
+            <input type="text" id="applicantName" placeholder="Enter Applicant Name" required>
+        </div>
+        <div class="input-group">
+            <label>Mobile Number (10 Digits)</label>
+            <input type="tel" id="mobile" placeholder="Enter mobile number" maxlength="10" required>
+        </div>
+
+        <div class="section-title">Main Documents (Images or PDFs)</div>
+        <div class="input-group">
+            <label>Upload Applicant Photo (Required)</label>
+            <input type="file" id="appPhoto" accept="image/*,.pdf" required>
+        </div>
+        <div class="input-group">
+            <label>Upload Bank Passbook (Required)</label>
+            <input type="file" id="passbook" accept="image/*,.pdf" required>
+        </div>
+
+        <div class="section-title">Family Member 1 (Mandatory)</div>
+        <div class="input-group">
+            <label>Member 1 Front Side</label>
+            <input type="file" id="m1Front" accept="image/*,.pdf" required>
+        </div>
+        <div class="input-group">
+            <label>Member 1 Back Side</label>
+            <input type="file" id="m1Back" accept="image/*,.pdf" required>
+        </div>
+
+        <div class="section-title">Family Member 2 (Optional)</div>
+        <div class="input-group">
+            <label>Member 2 Front Side</label>
+            <input type="file" id="m2Front" accept="image/*,.pdf">
+        </div>
+        <div class="input-group">
+            <label>Member 2 Back Side</label>
+            <input type="file" id="m2Back" accept="image/*,.pdf">
+        </div>
+
+        <div class="section-title">Family Member 3 (Optional)</div>
+        <div class="input-group">
+            <label>Member 3 Front Side</label>
+            <input type="file" id="m3Front" accept="image/*,.pdf">
+        </div>
+        <div class="input-group">
+            <label>Member 3 Back Side</label>
+            <input type="file" id="m3Back" accept="image/*,.pdf">
+        </div>
+
+        <button type="submit" id="submitBtn" class="submit-btn">Submit Application (₹200)</button>
+    </form>
+</div>
+
+<script type="text/javascript">
+    function googleTranslateElementInit() {
+        if (window.google && window.google.translate) {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'hi,en',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
+        }
+    }
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script>
+    // --- F12 & Inspect Element Security Protection ---
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F12' || e.keyCode === 123) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    let currentSenderMobile = "";
+    let currentSenderName = "";
+
+    window.onload = function() {
+        const isLoggedin = localStorage.getItem("isLoggedIn");
+        currentSenderMobile = localStorage.getItem("loggedInUserMobile");
+        currentSenderName = localStorage.getItem("loggedInUserName");
+        const authLink = document.getElementById("authLink");
+
+        if (isLoggedin === "true" && currentSenderMobile) {
+            let nameSpan = document.getElementById("displaySenderName");
+            if(nameSpan) nameSpan.innerText = `${currentSenderName} (${currentSenderMobile})`;
+            if(authLink) {
+                authLink.innerText = "LOGOUT";
+                authLink.href = "#";
+                authLink.onclick = function(e) {
+                    e.preventDefault();
+                    localStorage.removeItem("isLoggedIn");
+                    localStorage.removeItem("loggedInUserName");
+                    localStorage.removeItem("loggedInUserMobile");
+                    alert("Logged out successfully!");
+                    window.location.href = "HOME.html";
+                };
+            }
+        } else {
+            alert("Form bharne ke liye pehle Login karna zaroori hai!");
+            window.location.href = "login.html";
+        }
+    };
+
+    // Server upload helper function
+    async function uploadFileToServer(file, customerName, serviceName, mobile, desc) {
+        if (!file) return "";
+        let formData = new FormData();
+        formData.append("file", file);
+        formData.append("customer_name", customerName || "Customer");
+        formData.append("service_name", serviceName || "Rasan Card");
+        formData.append("mobile", mobile || "Not Provided");
+        formData.append("description", desc || "");
+
+        try {
+            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+                method: "POST",
+                body: formData
+            });
+            let result = await response.json();
+            if (result.status === "success") {
+                return result.file_url;
+            } else {
+                throw new Error(result.message || "Upload failed");
+            }
+        } catch (err) {
+            console.error("Server upload error, falling back to base64:", err);
+            return await new Promise((resolve) => {
+                let reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+
+    async function submitRasanForm(event) {
+        event.preventDefault();
+        let submitBtn = document.getElementById("submitBtn");
+        submitBtn.innerText = "Uploading Files to Server... Please wait";
+        submitBtn.disabled = true;
+
+        var mobile = document.getElementById("mobile").value;
+        var applicantName = document.getElementById("applicantName").value;
+
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            alert("Kripya valid 10-digit mobile number daalein!");
+            submitBtn.innerText = "Submit Application (₹200)";
+            submitBtn.disabled = false;
+            return false;
+        }
+
+        let senderInfo = currentSenderName + " (" + currentSenderMobile + ")";
+
+        try {
+            let appPhotoFile = document.getElementById('appPhoto').files[0];
+            let passbookFile = document.getElementById('passbook').files[0];
+            let m1fFile = document.getElementById('m1Front').files[0];
+            let m1bFile = document.getElementById('m1Back').files[0];
+            let m2fFile = document.getElementById('m2Front').files[0];
+            let m2bFile = document.getElementById('m2Back').files[0];
+            let m3fFile = document.getElementById('m3Front').files[0];
+            let m3bFile = document.getElementById('m3Back').files[0];
+
+            let appPhotoUrl = await uploadFileToServer(appPhotoFile, applicantName, "Rasan Card", mobile, "Applicant Photo");
+            let passbookUrl = await uploadFileToServer(passbookFile, applicantName, "Rasan Card", mobile, "Bank Passbook");
+            let m1fUrl = await uploadFileToServer(m1fFile, applicantName, "Rasan Card", mobile, "Member 1 Front Side");
+            let m1bUrl = await uploadFileToServer(m1bFile, applicantName, "Rasan Card", mobile, "Member 1 Back Side");
+            let m2fUrl = m2fFile ? await uploadFileToServer(m2fFile, applicantName, "Rasan Card", mobile, "Member 2 Front Side") : "";
+            let m2bUrl = m2bFile ? await uploadFileToServer(m2bFile, applicantName, "Rasan Card", mobile, "Member 2 Back Side") : "";
+            let m3fUrl = m3fFile ? await uploadFileToServer(m3fFile, applicantName, "Rasan Card", mobile, "Member 3 Front Side") : "";
+            let m3bUrl = m3bFile ? await uploadFileToServer(m3bFile, applicantName, "Rasan Card", mobile, "Member 3 Back Side") : "";
+
+            let fileNamesList = [
+                "Upload Applicant Photo",
+                "Upload Bank Passbook",
+                "Member 1 Front Side",
+                "Member 1 Back Side"
+            ];
+            if (m2fFile) fileNamesList.push("Member 2 Front Side");
+            if (m2bFile) fileNamesList.push("Member 2 Back Side");
+            if (m3fFile) fileNamesList.push("Member 3 Front Side");
+            if (m3bFile) fileNamesList.push("Member 3 Back Side");
+
+            let extraDocsArr = [m1fUrl, m1bUrl, m2fUrl, m2bUrl, m3fUrl, m3bUrl].filter(Boolean);
+
+            let applicationData = {
+                serviceName: "Rasan Card (Fee: ₹200)",
+                sender: senderInfo,
+                aadhaarName: applicantName,
+                mobile: mobile,
+                description: "Rasan Form with Front/Back uploads (Fee: ₹200)",
+                frontImg: appPhotoUrl, 
+                backImg: passbookUrl,  
+                extraDocs: extraDocsArr, 
+                fileNamesList: fileNamesList,
+                date: new Date().toLocaleDateString(),
+                status: "Pending"
+            };
+
+            let existingApplications = JSON.parse(localStorage.getItem("cscApplications")) || [];
+            existingApplications.push(applicationData);
+            localStorage.setItem("cscApplications", JSON.stringify(existingApplications));
+
+            alert("Rasan Card Application Successfully Submitted (Fee: ₹200)!");
+            window.location.href = "H login.html";
+        } catch (error) {
+            console.error(error);
+            alert("Error: Form submit karne mein samasya aayi!");
+            submitBtn.innerText = "Submit Application (₹200)";
+            submitBtn.disabled = false;
+        }
+        return false;
+    }
+</script>
+
+</body>
+</html>

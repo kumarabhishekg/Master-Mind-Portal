@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login - Mastermind Portal</title>
+
+    <style>
+        body { 
+            margin: 0px; 
+            padding: 0px; 
+            background-color: #f1f1f1;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            user-select: none; /* Text selection disable karne ke liye */
+        }
+
+        .login-box {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+
+        .login-box h2 { text-align: center; color: green; margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; user-select: text; }
+
+        .captcha-container { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .captcha-box { background-color: #e9ecef; padding: 10px 15px; border: 1px dashed #666; border-radius: 5px; font-weight: bold; font-size: 20px; letter-spacing: 4px; color: #333; text-align: center; flex-grow: 1; font-family: monospace; text-decoration: line-through; }
+        .refresh-btn { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
+        .submit-btn { width: 100%; padding: 12px; background-color: green; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .submit-btn:hover { background-color: darkgreen; }
+
+        .signup-text { text-align: center; margin-top: 20px; font-size: 14px; color: #555; display: flex; justify-content: space-between; align-items: center; }
+        .signup-text a { color: blue; text-decoration: none; font-weight: bold; cursor: pointer; }
+
+        /* Forgot Password Modal Styling */
+        .modal { display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
+        .modal-content { background-color: white; padding: 25px 30px; border-radius: 10px; width: 400px; max-width: 90%; position: relative; text-align: center; box-shadow: 0px 5px 15px rgba(0,0,0,0.3); }
+        .close-btn { position: absolute; right: 15px; top: 10px; font-size: 26px; font-weight: bold; color: #aaa; cursor: pointer; }
+        .close-btn:hover { color: black; }
+        .modal-content h3 { color: #dc3545; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    </style>
+</head>
+<body oncontextmenu="return false;"> <!-- Right click disable -->
+
+<div class="login-box">
+    <h2>Mastermind Login</h2>
+    
+    <form onsubmit="return validateLogin(event)">
+        <div class="input-group">
+            <label>Mobile Number</label>
+            <input type="tel" id="username" placeholder="Enter your registered mobile" maxlength="10" required>
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="Enter your password" required>
+        </div>
+
+        <div class="input-group">
+            <label>Security Verification</label>
+            <div class="captcha-container">
+                <div id="captchaDisplay" class="captcha-box"></div>
+                <button type="button" class="refresh-btn" onclick="generateCaptcha()">🔄</button>
+            </div>
+            <input type="text" id="captchaInput" placeholder="Enter code shown above" required>
+        </div>
+
+        <button type="submit" class="submit-btn">Login</button>
+    </form>
+
+    <div class="signup-text">
+        <a onclick="openForgotModal()" style="color: #dc3545;">Forgot Password?</a>
+        <span>Don't have an account? <a href="signup.html">Sign Up</a></span>
+    </div>
+</div>
+
+<!-- Forgot Password Popup Modal -->
+<div id="forgotModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeForgotModal()">&times;</span>
+        <h3>Reset Password</h3>
+        <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Apna account verify karne ke liye registered Mobile aur Email daalein.</p>
+        
+        <form onsubmit="return resetPassword(event)">
+            <div class="input-group">
+                <label>Registered Mobile</label>
+                <input type="tel" id="forgotMobile" placeholder="Enter mobile number" maxlength="10" required>
+            </div>
+            <div class="input-group">
+                <label>Registered Email</label>
+                <input type="email" id="forgotEmail" placeholder="Enter email address" required>
+            </div>
+            <div class="input-group">
+                <label>New Password</label>
+                <input type="password" id="newPassword" placeholder="Create new password" required>
+            </div>
+            <button type="submit" class="submit-btn" style="background-color: #dc3545;">Update Password</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- F12 & Inspect Element Security Protection ---
+    document.addEventListener('keydown', function(e) {
+        // F12 key disable
+        if (e.key === 'F12' || e.keyCode === 123) {
+            e.preventDefault();
+            return false;
+        }
+        // Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+U disable
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    let generatedCaptcha = "";
+
+    function generateCaptcha() {
+        const chars = "0123456789"; 
+        generatedCaptcha = "";
+        for (let i = 0; i < 6; i++) {
+            generatedCaptcha += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById("captchaDisplay").innerText = generatedCaptcha;
+    }
+
+    window.onload = function() {
+        generateCaptcha();
+    };
+
+    function validateLogin(event) {
+        event.preventDefault();
+
+        var mobile = document.getElementById("username").value.trim();
+        var pass = document.getElementById("password").value.trim();
+        var userInputCaptcha = document.getElementById("captchaInput").value.trim();
+
+        if (userInputCaptcha !== generatedCaptcha) {
+            alert("Galat Captcha code! Kripya dobara try karein.");
+            generateCaptcha();
+            document.getElementById("captchaInput").value = "";
+            return false;
+        }
+
+        // 1. Admin 1 Check
+        if (mobile === "7037505945" && pass === "Ankit@7037") {
+            localStorage.setItem("isLoggedIn", "true");
+            localStorage.setItem("loggedInUserName", "Admin 1");
+            localStorage.setItem("loggedInUserMobile", "7037505945");
+            alert("Admin Login Successful!");
+            window.location.href = "admin.html";
+            return;
+        }
+
+        // 2. Admin 2 Check
+        if (mobile === "9758078814" && pass === "Ankit@9758") {
+            localStorage.setItem("isLoggedIn", "true");
+            localStorage.setItem("loggedInUserName", "Admin 2");
+            localStorage.setItem("loggedInUserMobile", "9758078814");
+            alert("Admin Login Successful!");
+            window.location.href = "admin.html";
+            return;
+        }
+
+        // 3. Regular Registered User Check
+        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
+        let foundUser = users.find(u => u.mobile === mobile && u.password === pass);
+
+        if (foundUser) {
+            if (foundUser.status === "Blocked") {
+                alert("Aapka account admin dwara block kar diya gaya hai! Kripya admin se sampark karein.");
+                return;
+            }
+
+            localStorage.setItem("isLoggedIn", "true");
+            localStorage.setItem("loggedInUserName", foundUser.name);
+            localStorage.setItem("loggedInUserMobile", foundUser.mobile);
+            alert("Login Successful!");
+            window.location.href = "H login.html";
+        } else {
+            alert("Galat Mobile Number ya Password! Pehle Sign Up karein ya details check karein.");
+            generateCaptcha();
+            document.getElementById("captchaInput").value = "";
+        }
+    }
+
+    // --- FORGOT PASSWORD LOGIC ---
+    function openForgotModal() {
+        document.getElementById("forgotModal").style.display = "flex";
+    }
+
+    function closeForgotModal() {
+        document.getElementById("forgotModal").style.display = "none";
+    }
+
+    function resetPassword(event) {
+        event.preventDefault();
+
+        let mobile = document.getElementById("forgotMobile").value.trim();
+        let email = document.getElementById("forgotEmail").value.trim();
+        let newPass = document.getElementById("newPassword").value.trim();
+
+        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
+        let userIndex = users.findIndex(u => u.mobile === mobile && u.email === email);
+
+        if (userIndex !== -1) {
+            users[userIndex].password = newPass;
+            localStorage.setItem("mastermindUsers", JSON.stringify(users));
+            
+            alert("Password successfully reset! Ab aap apne naye password ke sath login kar sakte hain.");
+            
+            document.getElementById("forgotMobile").value = "";
+            document.getElementById("forgotEmail").value = "";
+            document.getElementById("newPassword").value = "";
+            closeForgotModal();
+        } else {
+            alert("Details match nahi hui! Kripya sahi Registered Mobile aur Email daalein.");
+        }
+    }
+</script>
+
+</body>
+</html>

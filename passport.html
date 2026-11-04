@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Passport Application - Mastermind Portal</title>
+
+    <style>
+        body { margin: 0px; padding: 0px; background-color: #f1f1f1; font-family: Arial, sans-serif; user-select: none; }
+        shortcut { position: sticky; top: 0px; color: red; padding: 5px 10px; font-size: 20px; font-style: italic; background-color: lightgray; display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; width: 100%; box-sizing: border-box; z-index: 1000; }
+        
+        .form-container { max-width: 600px; margin: 30px auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); }
+        .form-container h2.main-title { text-align: center; color: #003366; margin-bottom: 5px; font-size: 28px; }
+        .price-tag { text-align: center; font-size: 18px; font-weight: bold; color: #d9534f; margin-bottom: 20px; }
+        
+        .info-box { background-color: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 8px; border: 1px solid #bee5eb; margin-bottom: 25px; font-size: 14px; line-height: 1.6; }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; background: #f8fafc; user-select: text; }
+        
+        .section-title { background: #f8f9fa; padding: 10px; border-left: 5px solid #003366; margin-top: 30px; margin-bottom: 15px; font-weight: bold; color: #333; }
+        
+        .submit-btn { width: 100%; padding: 12px; background-color: #003366; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s ease; margin-top: 10px; }
+        .submit-btn:hover { background-color: #001f3f; }
+
+        .active-user-box { background-color: #e8f4fd; border: 1px dashed #007bff; padding: 12px; border-radius: 8px; margin-bottom: 25px; text-align: center; font-size: 15px; color: #007bff; }
+        .active-user-box span { font-weight: bold; color: #333; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    
+<shortcut>
+    <a href="HOME.html" style="color: red; text-decoration: none;">MASTERMIND</a>
+    <a href="HOME.html">HOME</a> 
+    <a href="">SERVICES</a>
+    <a href="">SBI</a>
+    <a href="">About</a>
+    <a href="#" id="authLink" style="text-align: right;">LOGOUT</a>
+    <div id="google_translate_element" style="margin-left: 15px; display: inline-block;"></div>
+</shortcut>
+
+<div class="form-container">
+    <div class="info-box">
+        <b>📝 Passport Application Guidelines:</b><br>
+        • Aadhaar Card (Front and Back side) upload karna zaroori hai[cite: 12].<br>
+        • Date of Birth / Age verification ke liye 10th Marksheet upload karein[cite: 12].
+    </div>
+
+    <h2 class="main-title">Passport Application</h2>
+    <div class="price-tag">💵 Service Fee / Contact: <b>Call 7037505945</b></div>
+    
+    <div class="active-user-box">
+        👤 Application will be sent by:<br>
+        <span id="displaySenderName">Loading...</span>
+    </div>
+
+    <form id="passportForm" onsubmit="return submitPassportForm(event)">
+        
+        <div class="section-title">Personal Details</div>
+        <div class="input-group">
+            <label>Applicant Name (Aadhaar ke anusaar)</label>
+            <input type="text" id="applicantName" placeholder="Enter Full Name" required>
+        </div>
+        <div class="input-group">
+            <label>Mobile Number (10 Digits)</label>
+            <input type="tel" id="mobile" placeholder="Enter mobile number" maxlength="10" required>
+        </div>
+
+        <div class="section-title">Documents Upload (Images or PDFs)</div>
+        <div class="input-group">
+            <label>Upload Aadhaar Card (Front Side)</label>
+            <input type="file" id="aadhaarFront" accept="image/*,.pdf" required>
+        </div>
+        <div class="input-group">
+            <label>Upload Aadhaar Card (Back Side)</label>
+            <input type="file" id="aadhaarBack" accept="image/*,.pdf" required>
+        </div>
+        <div class="input-group">
+            <label>Upload 10th Marksheet</label>
+            <input type="file" id="marksheet10th" accept="image/*,.pdf" required>
+        </div>
+
+        <button type="submit" id="submitBtn" class="submit-btn">Submit Passport Application</button>
+    </form>
+</div>
+
+<!-- GOOGLE TRANSLATE SCRIPT -->
+<script type="text/javascript">
+    function googleTranslateElementInit() {
+        if (window.google && window.google.translate) {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'hi,en',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
+        }
+    }
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script>
+    // --- F12 & Inspect Element Security Protection ---
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F12' || e.keyCode === 123) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    let currentSenderMobile = "";
+    let currentSenderName = "";
+
+    window.onload = function() {
+        const isLoggedin = localStorage.getItem("isLoggedIn");
+        currentSenderMobile = localStorage.getItem("loggedInUserMobile");
+        currentSenderName = localStorage.getItem("loggedInUserName");
+        const authLink = document.getElementById("authLink");
+
+        if (isLoggedin === "true" && currentSenderMobile) {
+            let nameSpan = document.getElementById("displaySenderName");
+            if(nameSpan) nameSpan.innerText = `${currentSenderName} (${currentSenderMobile})`;
+            
+            if(authLink) {
+                authLink.innerText = "LOGOUT";
+                authLink.href = "#";
+                authLink.onclick = function(e) {
+                    e.preventDefault();
+                    localStorage.removeItem("isLoggedIn");
+                    localStorage.removeItem("loggedInUserName");
+                    localStorage.removeItem("loggedInUserMobile");
+                    alert("Logged out successfully!");
+                    window.location.href = "HOME.html";
+                };
+            }
+        } else {
+            alert("Form bharne ke liye pehle Login karna zaroori hai!");
+            window.location.href = "login.html";
+        }
+    };
+
+    // Server upload helper function
+    async function uploadFileToServer(file, customerName, serviceName, mobile, desc) {
+        if (!file) return "";
+        let formData = new FormData();
+        formData.append("file", file);
+        formData.append("customer_name", customerName || "Customer");
+        formData.append("service_name", serviceName || "Passport");
+        formData.append("mobile", mobile || "Not Provided");
+        formData.append("description", desc || "");
+
+        try {
+            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+                method: "POST",
+                body: formData
+            });
+            let result = await response.json();
+            if (result.status === "success") {
+                return result.file_url;
+            } else {
+                throw new Error(result.message || "Upload failed");
+            }
+        } catch (err) {
+            console.error("Server upload error, falling back to base64:", err);
+            return await new Promise((resolve) => {
+                let reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+
+    async function submitPassportForm(event) {
+        event.preventDefault();
+        let submitBtn = document.getElementById("submitBtn");
+        submitBtn.innerText = "Uploading Files to Server... Please wait";
+        submitBtn.disabled = true;
+
+        var mobile = document.getElementById("mobile").value;
+        var applicantName = document.getElementById("applicantName").value;
+
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            alert("Kripya valid 10-digit mobile number daalein!");
+            submitBtn.innerText = "Submit Passport Application";
+            submitBtn.disabled = false;
+            return false;
+        }
+
+        let senderInfo = currentSenderName + " (" + currentSenderMobile + ")";
+
+        try {
+            let frontFile = document.getElementById('aadhaarFront').files[0];
+            let backFile = document.getElementById('aadhaarBack').files[0];
+            let marksheetFile = document.getElementById('marksheet10th').files[0];
+
+            let frontUrl = await uploadFileToServer(frontFile, applicantName, "Passport", mobile, "Aadhaar Front");
+            let backUrl = await uploadFileToServer(backFile, applicantName, "Passport", mobile, "Aadhaar Back");
+            let marksheetUrl = await uploadFileToServer(marksheetFile, applicantName, "Passport", mobile, "10th Marksheet");
+
+            let fileNamesList = [
+                "Upload Aadhaar Card (Front Side)",
+                "Upload Aadhaar Card (Back Side)",
+                "Upload 10th Marksheet"
+            ];
+
+            let applicationData = {
+                serviceName: "Passport",
+                sender: senderInfo,
+                aadhaarName: applicantName,
+                mobile: mobile,
+                description: "Passport Application with Aadhaar Front/Back & 10th Marksheet (Contact: 7037505945)", 
+                frontImg: frontUrl, 
+                backImg: backUrl,  
+                extraDocs: [marksheetUrl], 
+                fileNamesList: fileNamesList,
+                date: new Date().toLocaleDateString(),
+                status: "Pending"
+            };
+
+            let existingApplications = JSON.parse(localStorage.getItem("cscApplications")) || [];
+            existingApplications.push(applicationData);
+            localStorage.setItem("cscApplications", JSON.stringify(existingApplications));
+
+            alert("Passport Application Successfully Submitted!");
+            window.location.href = "H login.html";
+        } catch (error) {
+            console.error(error);
+            alert("Error: Form submit karne mein samasya aayi!");
+            submitBtn.innerText = "Submit Passport Application";
+            submitBtn.disabled = false;
+        }
+        return false;
+    }
+</script>
+
+</body>
+</html>

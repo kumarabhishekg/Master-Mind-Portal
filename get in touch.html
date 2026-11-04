@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Get In Touch - Mastermind Portal</title>
+
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); min-height: 100vh; }
+        
+        /* Navigation Bar */
+        shortcut { position: sticky; top: 0; color: red; padding: 8px 15px; font-size: 20px; font-style: italic; background-color: rgba(211, 211, 211, 0.95); display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; width: 100%; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        shortcut a { text-decoration: none; color: #333; font-weight: bold; font-style: normal; font-size: 16px; transition: 0.3s; }
+        shortcut a:hover { color: #007bff; }
+
+        /* Main Wrapper */
+        .main-wrapper { max-width: 950px; margin: 40px auto; display: flex; flex-wrap: wrap; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.15); }
+
+        /* Left Contact Info Panel */
+        .contact-info { flex: 1; min-width: 300px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 40px 30px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+        .contact-info h2 { font-size: 30px; margin-top: 0; margin-bottom: 15px; }
+        .contact-info p { font-size: 15px; line-height: 1.6; color: #d1e0ff; margin-bottom: 30px; }
+
+        .shop-card { background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.25); padding: 20px; border-radius: 15px; margin-bottom: 25px; }
+        .shop-card h4 { margin: 0 0 8px 0; font-size: 16px; color: #ffd700; text-transform: uppercase; letter-spacing: 1px; }
+        .phone-number { font-size: 26px; font-weight: 800; color: #fff; margin: 5px 0 15px 0; display: block; letter-spacing: 1px; }
+
+        .direct-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn-call, .btn-wa { flex: 1; text-align: center; padding: 10px 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; transition: 0.3s; display: inline-block; }
+        .btn-call { background: #ffffff; color: #1e3c72; }
+        .btn-call:hover { background: #ffd700; color: #000; }
+        .btn-wa { background: #25D366; color: white; }
+        .btn-wa:hover { background: #1ebe57; }
+
+        .active-user-badge { background: rgba(0, 0, 0, 0.25); padding: 12px 15px; border-radius: 10px; font-size: 13px; color: #e0eafc; border-left: 4px solid #ffd700; }
+        .active-user-badge span { font-weight: bold; color: #fff; display: block; font-size: 15px; margin-top: 4px; }
+
+        /* Right Form Panel */
+        .contact-form { flex: 1.4; min-width: 320px; padding: 40px 35px; background: #ffffff; }
+        .contact-form h3 { font-size: 26px; color: #1e3c72; margin-top: 0; margin-bottom: 5px; }
+        .price-tag { font-size: 16px; font-weight: bold; color: #d9534f; margin-bottom: 15px; }
+        .contact-form .sub-text { color: #666; font-size: 14px; margin-bottom: 25px; }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px; }
+        .input-group input[type="text"],
+        .input-group input[type="tel"],
+        .input-group textarea { width: 100%; padding: 13px 15px; border: 1.5px solid #dce1e7; border-radius: 10px; font-size: 15px; transition: all 0.3s ease; background: #f9fbfd; outline: none; }
+        
+        .input-group input:focus,
+        .input-group textarea:focus { border-color: #1e3c72; background: #fff; box-shadow: 0 0 0 4px rgba(30, 60, 114, 0.1); }
+        .input-group textarea { resize: vertical; min-height: 110px; }
+
+        /* Stylish File Upload Box */
+        .file-upload-box { border: 2px dashed #2a5298; background: #f4f8ff; padding: 22px; text-align: center; border-radius: 12px; cursor: pointer; transition: 0.3s; position: relative; }
+        .file-upload-box:hover { background: #e8f1ff; border-color: #1e3c72; }
+        .file-upload-box input[type="file"] { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .file-upload-icon { font-size: 32px; margin-bottom: 8px; display: block; }
+        .file-upload-text { font-weight: bold; color: #1e3c72; font-size: 15px; }
+        .file-upload-hint { font-size: 12px; color: #666; margin-top: 5px; }
+        #selectedFileName { margin-top: 10px; font-size: 13px; font-weight: bold; color: #28a745; word-break: break-all; }
+
+        .submit-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border: none; border-radius: 10px; font-size: 17px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(30, 60, 114, 0.3); margin-top: 10px; }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(30, 60, 114, 0.4); }
+        .submit-btn:disabled { background: #999; cursor: not-allowed; transform: none; }
+
+        @media (max-width: 768px) {
+            .main-wrapper { margin: 15px; }
+            .contact-info, .contact-form { padding: 25px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<shortcut>
+    <a href="HOME.html" style="color: red; font-size: 22px; font-style: italic;">MASTERMIND</a>
+    <a href="H login.html">DASHBOARD</a> 
+    <a href="HOME.html">HOME</a>
+    <a href="#" id="authLink">LOGOUT</a>
+    <div id="google_translate_element" style="display: inline-block;"></div>
+</shortcut>
+
+<div class="main-wrapper">
+    <!-- Left Side: Direct Contact & Shop Info -->
+    <div class="contact-info">
+        <div>
+            <h2>Get In Touch 🤝</h2>
+            <p>Koi bhi sarkari form, online sewa, document print ya kisi anya jankari ke liye apna message aur file yahan bhejein.</p>
+
+            <div class="shop-card">
+                <h4>📞 Direct Shop Contact</h4>
+                <span class="phone-number">7037505945</span>
+                <div class="direct-btns">
+                    <a href="tel:7037505945" class="btn-call">📲 Call Now</a>
+                    <a href="https://wa.me/917037505945" target="_blank" class="btn-wa">💬 WhatsApp</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="active-user-badge">
+            👤 Logged in Account:
+            <span id="displaySenderName">Guest / Active User</span>
+        </div>
+    </div>
+
+    <!-- Right Side: Stylish Form -->
+    <div class="contact-form">
+        <h3>Send Your Requirement</h3>
+        <div class="price-tag">💵 Service Fee / Price: <b>₹100</b></div>
+        <div class="sub-text">Apni detail bharein aur koi bhi photo, PDF ya document upload karein (Server-Side Storage).</div>
+
+        <form id="contactForm" onsubmit="return submitContactForm(event)">
+            <div class="input-group">
+                <label>Your Full Name (Aapka Naam) *</label>
+                <input type="text" id="applicantName" placeholder="Apna pura naam likhein" required>
+            </div>
+
+            <div class="input-group">
+                <label>Mobile Number (10 Digits) *</label>
+                <input type="tel" id="mobile" placeholder="10-digit mobile number" maxlength="10" required>
+            </div>
+
+            <div class="input-group">
+                <label>Message / Work Description (Kaam ka Vivaran) *</label>
+                <textarea id="description" placeholder="Yahan likhein aapko kya kaam karwana hai (jaise: Print out, Aay/Jaati/Niwas, Online Form, Correction, etc.)..." required></textarea>
+            </div>
+
+            <div class="input-group">
+                <label>Upload Any File (Images, PDFs, Docs - Multiple Allowed)</label>
+                <div class="file-upload-box">
+                    <span class="file-upload-icon">📁</span>
+                    <div class="file-upload-text">Click to Choose Files or Drag Here</div>
+                    <div class="file-upload-hint">Supports: Images & PDFs (Server upload enabled)</div>
+                    <input type="file" id="anyFile" accept="image/*,.pdf,.doc,.docx" multiple onchange="showFileName(this)">
+                    <div id="selectedFileName"></div>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn" class="submit-btn">🚀 Submit Request (₹100)</button>
+        </form>
+    </div>
+</div>
+
+<!-- GOOGLE TRANSLATE SCRIPT -->
+<script type="text/javascript">
+    function googleTranslateElementInit() {
+        if (window.google && window.google.translate) {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'hi,en',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
+        }
+    }
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script>
+    let currentSenderMobile = "Direct User";
+    let currentSenderName = "Portal Visitor";
+
+    window.onload = function() {
+        const isLoggedin = localStorage.getItem("isLoggedIn");
+        const savedMobile = localStorage.getItem("loggedInUserMobile");
+        const savedName = localStorage.getItem("loggedInUserName");
+        const authLink = document.getElementById("authLink");
+        const nameSpan = document.getElementById("displaySenderName");
+
+        if (isLoggedin === "true" && savedMobile) {
+            currentSenderMobile = savedMobile;
+            currentSenderName = savedName || "User";
+            if(nameSpan) nameSpan.innerText = `${currentSenderName} (${currentSenderMobile})`;
+            
+            if(authLink) {
+                authLink.innerText = "LOGOUT";
+                authLink.onclick = function(e) {
+                    e.preventDefault();
+                    localStorage.removeItem("isLoggedIn");
+                    localStorage.removeItem("loggedInUserName");
+                    localStorage.removeItem("loggedInUserMobile");
+                    alert("Logged out successfully!");
+                    window.location.href = "HOME.html";
+                };
+            }
+        } else {
+            if(nameSpan) nameSpan.innerText = "Direct Visitor";
+            if(authLink) {
+                authLink.innerText = "LOGIN";
+                authLink.href = "login.html";
+            }
+        }
+    };
+
+    function showFileName(input) {
+        const fileNameDiv = document.getElementById("selectedFileName");
+        if (input.files && input.files.length > 0) {
+            let names = Array.from(input.files).map(f => `${f.name} (${(f.size / 1024).toFixed(1)} KB)`);
+            fileNameDiv.innerText = `✅ Selected (${input.files.length}): ` + names.join(", ");
+        } else {
+            fileNameDiv.innerText = "";
+        }
+    }
+
+    // Helper function to upload each file to FastAPI Server (`/api/upload`)
+    async function uploadFileToServer(file, customerName, serviceName, mobile, desc) {
+        if (!file) return "";
+        let formData = new FormData();
+        formData.append("file", file);
+        formData.append("customer_name", customerName || "Customer");
+        formData.append("service_name", serviceName || "Get In Touch");
+        formData.append("mobile", mobile || "Not Provided");
+        formData.append("description", desc || "");
+
+        try {
+            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+                method: "POST",
+                body: formData
+            });
+            let result = await response.json();
+            if (result.status === "success") {
+                return result.file_url;
+            } else {
+                throw new Error(result.message || "Upload failed");
+            }
+        } catch (err) {
+            console.error("Server upload error, falling back to base64:", err);
+            return await new Promise((resolve) => {
+                let reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+
+    async function submitContactForm(event) {
+        event.preventDefault();
+        let submitBtn = document.getElementById("submitBtn");
+        submitBtn.innerText = "⏳ Uploading Files to Server... Please wait";
+        submitBtn.disabled = true;
+
+        let mobile = document.getElementById("mobile").value.trim();
+        let applicantName = document.getElementById("applicantName").value.trim();
+        let userDesc = document.getElementById("description").value.trim();
+        let filesList = document.getElementById("anyFile").files;
+
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            alert("Kripya valid 10-digit mobile number daalein!");
+            submitBtn.innerText = "🚀 Submit Request (₹100)";
+            submitBtn.disabled = false;
+            return false;
+        }
+
+        let senderInfo = currentSenderName + " (" + currentSenderMobile + ")";
+        let uploadedUrls = [];
+        let fileNamesList = [];
+
+        try {
+            for (let i = 0; i < filesList.length; i++) {
+                fileNamesList.push(filesList[i].name);
+                let serverUrl = await uploadFileToServer(filesList[i], applicantName, "Get In Touch", mobile, `User Upload ${i + 1}: ${filesList[i].name}`);
+                if (serverUrl) uploadedUrls.push(serverUrl);
+            }
+        } catch (err) {
+            console.warn("File upload error:", err);
+        }
+
+        let fileInfoText = fileNamesList.length > 0 ? ` | Files: ${fileNamesList.join(", ")}` : " | No File";
+
+        let applicationData = {
+            serviceName: "Get In Touch (Fee: ₹100)",
+            sender: senderInfo,
+            aadhaarName: applicantName,
+            mobile: mobile,
+            description: userDesc + fileInfoText + " (Fee: ₹100)", 
+            frontImg: uploadedUrls[0] || null, 
+            backImg: uploadedUrls[1] || null,  
+            extraDocs: uploadedUrls.slice(2), 
+            fileNamesList: fileNamesList,
+            date: new Date().toLocaleDateString(),
+            status: "Pending"
+        };
+
+        let existingApplications = JSON.parse(localStorage.getItem("bankingApplications")) || [];
+
+        try {
+            existingApplications.push(applicationData);
+            localStorage.setItem("bankingApplications", JSON.stringify(existingApplications));
+            alert("✅ Aapka message aur files safaltapurvak server par submit ho gaye hain (Fee: ₹100)!");
+            window.location.href = "H login.html";
+        } catch (storageError) {
+            alert("⚠️ Error saving application! Kripya check karein ki server chal raha hai.");
+            submitBtn.innerText = "🚀 Submit Request (₹100)";
+            submitBtn.disabled = false;
+        }
+        return false;
+    }
+</script>
+
+</body>
+</html>

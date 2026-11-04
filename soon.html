@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Service Coming Soon - Mastermind Portal</title>
+
+	<style>
+		* { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+		body { margin: 0; padding: 0; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; color: white; display: flex; flex-direction: column; overflow-x: hidden; }
+		
+		/* Navigation Bar */
+		shortcut { position: sticky; top: 0; color: red; padding: 8px 15px; font-size: 20px; font-style: italic; background-color: rgba(255, 255, 255, 0.95); display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; width: 100%; z-index: 1000; box-shadow: 0 2px 15px rgba(0,0,0,0.3); }
+		shortcut a { text-decoration: none; color: #222; font-weight: bold; font-style: normal; font-size: 16px; transition: 0.3s; }
+		shortcut a:hover { color: #007bff; }
+
+		/* Main Container */
+		.coming-soon-wrapper { flex: 1; display: flex; justify-content: center; align-items: center; padding: 30px 15px; }
+		
+		.glass-card { max-width: 650px; width: 100%; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 24px; padding: 40px 30px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
+
+		/* Floating Rocket Animation */
+		.rocket-icon { font-size: 65px; display: inline-block; animation: floatRocket 3s ease-in-out infinite; margin-bottom: 10px; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); }
+		@keyframes floatRocket {
+			0%, 100% { transform: translateY(0px) rotate(0deg); }
+			50% { transform: translateY(-15px) rotate(5deg); }
+		}
+
+		.badge { display: inline-block; background: linear-gradient(90deg, #ff8a00, #e52e71); color: white; padding: 6px 18px; border-radius: 50px; font-size: 13px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(229, 46, 113, 0.4); }
+
+		h1 { font-size: 36px; margin: 0 0 12px 0; background: linear-gradient(to right, #ffffff, #a8e6cf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+		.hindi-msg { font-size: 18px; color: #e0f2fe; line-height: 1.6; margin-bottom: 25px; font-weight: 500; }
+
+		/* Progress Bar */
+		.progress-container { background: rgba(0,0,0,0.3); border-radius: 50px; padding: 5px; margin: 0 auto 30px auto; max-width: 450px; border: 1px solid rgba(255,255,255,0.1); }
+		.progress-bar { height: 14px; width: 85%; background: linear-gradient(90deg, #00c6ff, #0072ff); border-radius: 50px; position: relative; animation: loadProgress 2s ease-out; }
+		@keyframes loadProgress { from { width: 10%; } to { width: 85%; } }
+		.progress-text { font-size: 13px; color: #ffd700; margin-top: 6px; font-weight: bold; letter-spacing: 0.5px; }
+
+		/* Notify / Urgent Request Mini Form */
+		.notify-box { background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px; padding: 20px; margin-bottom: 25px; text-align: left; }
+		.notify-box h4 { margin: 0 0 12px 0; color: #ffd700; font-size: 16px; text-align: center; }
+		.notify-inputs { display: flex; flex-wrap: wrap; gap: 10px; }
+		.notify-inputs input { flex: 1; min-width: 180px; padding: 12px 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.9); color: #222; font-size: 14px; outline: none; font-weight: 500; }
+		.notify-btn { width: 100%; margin-top: 10px; padding: 12px; background: linear-gradient(90deg, #00b09b, #96c93d); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+		.notify-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 176, 155, 0.4); }
+
+		/* Urgent Contact Card */
+		.contact-banner { background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15)); border: 1.5px dashed #ffd700; border-radius: 16px; padding: 18px; margin-bottom: 20px; }
+		.contact-banner p { margin: 0 0 8px 0; font-size: 14px; color: #fff; }
+		.contact-number { font-size: 26px; font-weight: 800; color: #ffd700; letter-spacing: 1px; display: block; margin-bottom: 12px; }
+		
+		.action-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+		.btn { padding: 11px 22px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 15px; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; }
+		.btn-call { background: #fff; color: #0f2027; }
+		.btn-call:hover { background: #ffd700; transform: scale(1.05); }
+		.btn-wa { background: #25D366; color: white; }
+		.btn-wa:hover { background: #1ebe57; transform: scale(1.05); }
+		.btn-back { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); margin-top: 15px; }
+		.btn-back:hover { background: rgba(255,255,255,0.3); }
+
+		@media (max-width: 600px) {
+			h1 { font-size: 28px; }
+			.glass-card { padding: 30px 20px; }
+		}
+	</style>
+</head>
+<body>
+
+<shortcut>
+	<a href="HOME.html" style="color: red; font-size: 22px; font-style: italic;">MASTERMIND</a>
+	<a href="H login.html">DASHBOARD</a> 
+	<a href="contact.html">GET IN TOUCH</a>
+	<a href="#" id="authLink">LOGOUT</a>
+	<div id="google_translate_element" style="display: inline-block;"></div>
+</shortcut>
+
+<div class="coming-soon-wrapper">
+	<div class="glass-card">
+		<div class="rocket-icon">🚀</div>
+		<br>
+		<span class="badge">✨ New Feature Update</span>
+		
+		<h1>Service Coming Soon!</h1>
+		<p class="hindi-msg">
+			Yeh suvidha bahut jald start kar di jayegi! Hum is page ko aapke liye aur bhi aasan aur fast bana rahe hain.
+		</p>
+
+		<!-- Animated Progress Bar -->
+		<div class="progress-container">
+			<div class="progress-bar"></div>
+		</div>
+		<div class="progress-text">⚙️ System Setup: 85% Completed... Launching Soon!</div>
+
+		<br>
+
+		<!-- Quick Inquiry Box (Saves to Admin Panel) -->
+		<div class="notify-box">
+			<h4>🔔 Kya aapko yeh kaam abhi urgent karwana hai?</h4>
+			<form onsubmit="return submitWaitlist(event)">
+				<div class="notify-inputs">
+					<input type="text" id="userName" placeholder="Aapka Naam" required>
+					<input type="tel" id="userMobile" placeholder="10-Digit Mobile No." maxlength="10" required>
+					<input type="text" id="serviceNeeded" placeholder="Kaun si service chahiye? (e.g. Driving License, PF)" required style="flex: 100%;">
+				</div>
+				<button type="submit" id="notifyBtn" class="notify-btn">📩 Request Bhejein (Hum Aapse Sampark Karenge)</button>
+			</form>
+		</div>
+
+		<!-- Direct Contact Box -->
+		<div class="contact-banner">
+			<p>Tatkal sewa ya adhik jankari ke liye seedha sampark karein:</p>
+			<span class="contact-number">📞 7037505945</span>
+			<div class="action-buttons">
+				<a href="tel:7037505945" class="btn btn-call">📲 Call Now</a>
+				<a href="https://wa.me/917037505945" target="_blank" class="btn btn-wa">💬 WhatsApp Karein</a>
+			</div>
+		</div>
+
+		<a href="H login.html" class="btn btn-back">⬅️ Back to Dashboard</a>
+	</div>
+</div>
+
+<!-- GOOGLE TRANSLATE SCRIPT -->
+<script type="text/javascript">
+    function googleTranslateElementInit() {
+        if (window.google && window.google.translate) {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'hi,en',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
+        }
+    }
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script>
+    let currentSenderMobile = "Visitor";
+    let currentSenderName = "User";
+
+    window.onload = function() {
+        const isLoggedin = localStorage.getItem("isLoggedIn");
+        const savedMobile = localStorage.getItem("loggedInUserMobile");
+        const savedName = localStorage.getItem("loggedInUserName");
+        const authLink = document.getElementById("authLink");
+
+        if (isLoggedin === "true" && savedMobile) {
+            currentSenderMobile = savedMobile;
+            currentSenderName = savedName || "User";
+            
+            // Auto-fill user name & mobile if already logged in
+            document.getElementById("userName").value = currentSenderName;
+            document.getElementById("userMobile").value = currentSenderMobile;
+
+            if(authLink) {
+                authLink.innerText = "LOGOUT";
+                authLink.onclick = function(e) {
+                    e.preventDefault();
+                    localStorage.removeItem("isLoggedIn");
+                    localStorage.removeItem("loggedInUserName");
+                    localStorage.removeItem("loggedInUserMobile");
+                    alert("Logged out successfully!");
+                    window.location.href = "HOME.html";
+                };
+            }
+        } else {
+            if(authLink) {
+                authLink.innerText = "LOGIN";
+                authLink.href = "login.html";
+            }
+        }
+    };
+
+    function submitWaitlist(event) {
+        event.preventDefault();
+        let name = document.getElementById("userName").value.trim();
+        let mobile = document.getElementById("userMobile").value.trim();
+        let service = document.getElementById("serviceNeeded").value.trim();
+
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            alert("Kripya valid 10-digit mobile number daalein!");
+            return false;
+        }
+
+        let applicationData = {
+            serviceName: "Coming Soon Inquiry",
+            sender: `${name} (${mobile})`,
+            aadhaarName: name,
+            mobile: mobile,
+            description: `Urgent Service Requested: ${service}`,
+            frontImg: null,
+            backImg: null,
+            extraDocs: [],
+            date: new Date().toLocaleDateString(),
+            status: "Pending"
+        };
+
+        try {
+            let existingApplications = JSON.parse(localStorage.getItem("gstApplications")) || [];
+            existingApplications.push(applicationData);
+            localStorage.setItem("gstApplications", JSON.stringify(existingApplications));
+            alert("✅ Dhanyawad! Aapki request note kar li gayi hai. Hum jald hi aapse sampark karenge.");
+            document.getElementById("serviceNeeded").value = "";
+        } catch (err) {
+            alert("Aapki request ke liye kripya seedha 7037505945 par Call ya WhatsApp karein!");
+        }
+        return false;
+    }
+</script>
+
+</body>
+</html>

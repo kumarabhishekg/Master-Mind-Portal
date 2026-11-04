@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mastermind - Instant Print Studio</title>
+    
+    <!-- Cropper.js CSS CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background-color: #f1f5f9; color: #333; }
+
+        header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        header h2 { margin: 0; font-size: 20px; color: #ffd700; letter-spacing: 1px; }
+        header a { color: #ffd700; text-decoration: none; font-weight: bold; background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 6px; transition: 0.3s; }
+        header a:hover { background: rgba(255,255,255,0.25); }
+
+        .main-container { max-width: 1300px; margin: 25px auto; padding: 0 15px; display: grid; grid-template-columns: 1.15fr 1fr; gap: 25px; }
+        @media(max-width: 950px) { .main-container { grid-template-columns: 1fr; } }
+
+        .panel { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .panel-header { background: #1e3c72; color: white; padding: 12px 18px; border-radius: 10px; font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+
+        /* Left Table Styling */
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px 8px; text-align: center; font-size: 13px; vertical-align: middle; }
+        th { background-color: #1e3c72; color: white; font-weight: 600; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        
+        .draggable-item { display: inline-flex; align-items: center; gap: 8px; cursor: grab; padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; font-weight: 600; font-size: 12px; color: #1e3c72; }
+        .draggable-item:active { cursor: grabbing; }
+        .thumb-img { width: 38px; height: 28px; object-fit: cover; border-radius: 4px; }
+        
+        .status-badge { background: #d1e7dd; color: #0f5132; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; display: inline-block; }
+        
+        .action-btns-group { display: flex; gap: 6px; justify-content: center; }
+        .view-btn { background: #0d6efd; color: white; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .view-btn:hover { background: #0b5ed7; }
+        .print-btn { background: #16a34a; color: white; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .print-btn:hover { background: #15803d; }
+
+        /* Right Filter & Preview Box */
+        .filter-row { display: flex; gap: 15px; margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: bold; color: #475569; }
+        .filter-select { padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600; outline: none; background: white; font-size: 13px; }
+
+        .preview-workspace { background: #fff; border: 2px dashed #94a3b8; border-radius: 12px; padding: 20px; min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: relative; margin-bottom: 20px; gap: 15px; }
+        
+        .preview-card-box { border: 2px dashed #cbd5e1; background: #f8fafc; padding: 12px; border-radius: 8px; width: 100%; max-width: 420px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .preview-card-box.drag-over { border-color: #16a34a; background: #dcfce7; }
+        .preview-card-box:hover { border-color: #0d6efd; background: #eff6ff; }
+        .preview-card-box p { margin: 0 0 8px 0; font-size: 12px; font-weight: bold; color: #475569; text-align: left; }
+        
+        .preview-card-box img { width: 100%; max-height: 220px; object-fit: contain; background: white; border: 1px solid #e2e8f0; border-radius: 4px; display: block; margin: 0 auto; }
+        .preview-card-box embed { width: 100%; height: 260px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; display: block; }
+        
+        .print-trigger-btn { background: none; border: none; color: #0d6efd; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 16px; margin-top: 5px; }
+        .print-trigger-btn:hover { color: #0b5ed7; }
+
+        .download-hd-btn { background: #0d6efd; color: white; border: none; width: 100%; padding: 14px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3); transition: 0.2s; }
+        .download-hd-btn:hover { background: #0b5ed7; }
+
+        /* Modal Styling for Advanced Editing */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
+        .modal-content { background-color: white; padding: 25px; border-radius: 16px; width: 650px; max-width: 90%; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .close-btn { position: absolute; right: 20px; top: 15px; font-size: 26px; font-weight: bold; cursor: pointer; color: #aaa; }
+        .cropper-container-box { width: 100%; height: 320px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; }
+        .cropper-container-box img { max-width: 100%; display: block; }
+        
+        .cropper-modal { background-color: #ffffff !important; opacity: 0.85 !important; }
+
+        .edit-controls-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .btn-tool { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+        .btn-tool:hover { background: #1d4ed8; }
+
+        /* PRINT MEDIA QUERIES FOR CARD VS A4 */
+        @media print {
+            @page { margin: 10mm; }
+            body * { visibility: hidden; }
+            #printableArea, #printableArea * { visibility: visible; }
+            #printableArea { position: absolute; left: 0; top: 0; width: 100%; border: none !important; background: white !important; padding: 0 !important; margin: 0 !important; }
+            .no-print { display: none !important; }
+            .preview-card-box { border: none !important; background: none !important; padding: 0 !important; max-width: 100% !important; }
+            .preview-card-box p, .file-caption { display: none !important; }
+
+            #printableArea.print-mode-card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 15mm; padding-top: 10mm !important; }
+            #printableArea.print-mode-card img { width: 85.6mm !important; height: 54mm !important; max-height: none !important; object-fit: fill !important; border: 1px solid #999 !important; }
+
+            #printableArea.print-mode-a4 { display: block; width: 100%; height: 100%; }
+            #printableArea.print-mode-a4 #boxPreview2 { display: none !important; }
+            #printableArea.print-mode-a4 img { width: 100% !important; max-width: 190mm !important; height: auto !important; max-height: 275mm !important; object-fit: contain !important; border: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="no-print">
+    <h2>⚡ Mastermind Instant Print Studio</h2>
+    <a href="admin.html">Back to Admin</a>
+</header>
+
+<div class="main-container">
+    
+    <!-- LEFT PANEL: Document List Table -->
+    <div class="panel">
+        <div class="panel-header">
+            <span>📋 Document List (Drag & Drop, View or Direct Print)</span>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">Sr.</th>
+                        <th style="width: 42%;">Document (Drag to Preview)</th>
+                        <th style="width: 18%;">Status</th>
+                        <th style="width: 30%;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="documentTableBody">
+                    <tr>
+                        <td colspan="4" style="color: #888; font-style: italic; padding: 30px;">Loading documents...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: Format, Filter & Previews -->
+    <div class="panel">
+        <div class="panel-header" style="background: #0d6efd;">
+            <span>🔍 Filter & Preview (Drag Drop / Click Image to Edit)</span>
+        </div>
+
+        <div class="filter-row no-print">
+            <div class="filter-group">
+                <label>Format:</label>
+                <select id="formatFilter" class="filter-select" onchange="updateFormatView()">
+                    <option value="Card" selected>🪪 Card Format (2 Previews)</option>
+                    <option value="A4">📄 A4 Document (1 Full Page)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Filter:</label>
+                <select id="qualityFilter" class="filter-select" onchange="applyQualityFilter()">
+                    <option value="All">Normal</option>
+                    <option value="magic" selected>✨ Magic HD</option>
+                    <option value="grayscale">⬛ Black & White</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Preview Workspace -->
+        <div class="preview-workspace print-mode-card" id="printableArea">
+            
+            <div class="preview-card-box" id="boxPreview1" 
+                 ondragover="allowDrop(event, this)" 
+                 ondragleave="leaveDrop(this)" 
+                 ondrop="dropFile(event, 0, this)" 
+                 onclick="openEditModal(0)" title="Drag file here or Click to Edit">
+                <p id="labelPreview1">📍 Front Side / Page 1 (Drag Here or Click to Edit):</p>
+                <div id="containerPreview1">
+                    <span style="color: #94a3b8; font-size: 13px;">File yahan drag karein ya View dabayein</span>
+                </div>
+            </div>
+
+            <div class="preview-card-box" id="boxPreview2" 
+                 ondragover="allowDrop(event, this)" 
+                 ondragleave="leaveDrop(this)" 
+                 ondrop="dropFile(event, 1, this)" 
+                 onclick="openEditModal(1)" title="Drag file here or Click to Edit">
+                <p>📍 Back Side / Page 2 (Drag Here or Click to Edit):</p>
+                <div id="containerPreview2">
+                    <span style="color: #94a3b8; font-size: 13px;">Doosri file yahan drag karein</span>
+                </div>
+            </div>
+            
+            <button class="print-trigger-btn no-print" onclick="triggerWorkspacePrint()">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Click Print
+            </button>
+        </div>
+
+        <button class="download-hd-btn no-print" onclick="downloadActiveFile()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Active File
+        </button>
+    </div>
+
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="modal no-print">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeEditModal()">&times;</span>
+        <h3 style="color: #1e3c72; margin-top: 0;">✂️ Advanced Document Editor</h3>
+        
+        <div class="cropper-container-box" id="modalContainerBox"></div>
+
+        <div id="cropperToolsSection">
+            <div class="edit-controls-row">
+                <div>
+                    <label style="font-size: 13px; font-weight: bold;">Rotate (1° Precision):</label><br>
+                    <button class="btn-tool" onclick="rotateImage(-1)">◀ -1°</button>
+                    <button class="btn-tool" onclick="rotateImage(1)">+1° ▶</button>
+                    <button class="btn-tool" onclick="rotateImage(-90)">↺ -90°</button>
+                    <button class="btn-tool" onclick="rotateImage(90)">+90° ↻</button>
+                </div>
+                <div>
+                    <label style="font-size: 13px; font-weight: bold;">Custom Degree:</label><br>
+                    <input type="number" id="customDegreeInput" value="0" style="width: 70px; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1;" onchange="applyCustomDegree()">
+                    <button class="btn-tool" onclick="applyCustomDegree()">Set</button>
+                </div>
+            </div>
+
+            <div class="edit-controls-row">
+                <div>
+                    <label style="font-size: 13px; font-weight: bold;">Aspect Ratio / Size Select:</label><br>
+                    <select id="aspectRatioSelect" class="filter-select" onchange="changeAspectRatio()">
+                        <option value="NaN">Free / Custom Size</option>
+                        <option value="1.585">Standard ID Card (CR80)</option>
+                        <option value="0.707">A4 Page Ratio</option>
+                        <option value="1">1:1 Square</option>
+                    </select>
+                </div>
+                <div>
+                    <button class="btn-tool" style="background: #ca8a04;" onclick="resetCropper()">↺ Reset</button>
+                    <button class="btn-tool" style="background: #16a34a; padding: 8px 18px;" onclick="saveCroppedChanges()">✔ Apply & Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cropper.js JS CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+<script>
+    let currentFilesList = [];
+    let slotFiles = [null, null];
+    let activePreviewSlot = 0;
+    let cropperInstance = null;
+
+    function normalizeFileObject(rawName, rawSrc, index) {
+        let isPdf = false;
+        let ext = "jpg";
+
+        if (typeof rawSrc === "string") {
+            if (rawSrc.startsWith("data:application/pdf") || rawSrc.toLowerCase().endsWith(".pdf")) { 
+                isPdf = true; 
+                ext = "pdf"; 
+            } else if (rawSrc.includes("/storage/")) {
+                if (rawSrc.toLowerCase().endsWith(".pdf")) {
+                    isPdf = true;
+                    ext = "pdf";
+                }
+            }
+        }
+        if (rawName && rawName.toLowerCase().endsWith(".pdf")) {
+            isPdf = true;
+            ext = "pdf";
+        }
+
+        let cleanName = rawName || `Document_${index + 1}.${ext}`;
+        if (isPdf && !cleanName.toLowerCase().endsWith(".pdf")) {
+            cleanName = cleanName.replace(/\.(jpg|jpeg|png)$/i, "") + ".pdf";
+        }
+
+        return {
+            name: cleanName,
+            src: rawSrc,
+            blobUrl: rawSrc, // Server URL ya base64 direct work karega
+            isPdf: isPdf
+        };
+    }
+
+    window.onload = async function() {
+        let activeIndex = localStorage.getItem("activeInstantIndex");
+        let queue = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+
+        if (activeIndex === null && queue.length > 0) {
+            activeIndex = queue.length - 1;
+        }
+
+        if (activeIndex !== null && queue[activeIndex]) {
+            let item = queue[activeIndex];
+            currentFilesList = [];
+
+            let namesList = item.fileNamesList || [];
+            
+            // Server URL support for frontImg, backImg, and extraDocs
+            if (item.frontImg) {
+                currentFilesList.push(normalizeFileObject(namesList[0] || "Front_Document", item.frontImg, 0));
+            }
+            if (item.backImg) {
+                currentFilesList.push(normalizeFileObject(namesList[1] || "Back_Document", item.backImg, 1));
+            }
+            if (item.extraDocs && Array.isArray(item.extraDocs)) {
+                item.extraDocs.forEach((doc, idx) => {
+                    currentFilesList.push(normalizeFileObject(namesList[idx + 2] || `Document_${idx + 3}`, doc, idx + 2));
+                });
+            }
+
+            renderDocumentTable();
+
+            if (currentFilesList.length > 0) {
+                viewFileInPreview(0, true);
+            }
+        } else {
+            document.getElementById("documentTableBody").innerHTML = `<tr><td colspan="4" style="color: #dc3545; padding: 20px;">Koi active document nahi mila! Upload page ya Admin Panel se file bhejein.</td></tr>`;
+        }
+    };
+
+    function renderDocumentTable() {
+        let tbody = document.getElementById("documentTableBody");
+        if (currentFilesList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="padding: 20px; color: #888;">Is request mein koi file nahi hai.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = currentFilesList.map((fileObj, idx) => {
+            let badgeHTML = fileObj.isPdf
+                ? `<div class="draggable-item" draggable="true" ondragstart="dragStart(event, ${idx})" title="Drag to Right Preview">📄 <span>${fileObj.name}</span></div>`
+                : `<div class="draggable-item" draggable="true" ondragstart="dragStart(event, ${idx})" title="Drag to Right Preview"><img src="${fileObj.blobUrl}" class="thumb-img" alt="img"> <span>${fileObj.name}</span></div>`;
+
+            return `
+                <tr>
+                    <td><b>${idx + 1}</b></td>
+                    <td>${badgeHTML}</td>
+                    <td><span class="status-badge">✔ Uploaded</span></td>
+                    <td>
+                        <div class="action-btns-group">
+                            <button type="button" class="view-btn" onclick="viewFileInPreview(${idx}, false)">👁 View</button>
+                            <button type="button" class="print-btn" onclick="directPrintByIndex(${idx})">🖨 Print</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function dragStart(event, fileIndex) {
+        event.dataTransfer.setData("text/plain", String(fileIndex));
+    }
+
+    function allowDrop(event, boxElem) {
+        event.preventDefault();
+        boxElem.classList.add("drag-over");
+    }
+
+    function leaveDrop(boxElem) {
+        boxElem.classList.remove("drag-over");
+    }
+
+    function dropFile(event, slotIndex, boxElem) {
+        event.preventDefault();
+        boxElem.classList.remove("drag-over");
+        let idxStr = event.dataTransfer.getData("text/plain");
+        let fileIndex = parseInt(idxStr, 10);
+        if (!isNaN(fileIndex) && currentFilesList[fileIndex]) {
+            let fileObj = currentFilesList[fileIndex];
+            if (fileObj.isPdf) {
+                document.getElementById("formatFilter").value = "A4";
+                updateFormatView();
+                setPreviewSlot(0, fileObj);
+            } else {
+                setPreviewSlot(slotIndex, fileObj);
+            }
+        }
+    }
+
+    function viewFileInPreview(fileIndex, isInitialLoad) {
+        let fileObj = currentFilesList[fileIndex];
+        if (!fileObj) return;
+
+        if (fileObj.isPdf) {
+            document.getElementById("formatFilter").value = "A4";
+            updateFormatView();
+            setPreviewSlot(0, fileObj);
+        } else {
+            let currentFormat = document.getElementById("formatFilter").value;
+            if (isInitialLoad) {
+                if (currentFilesList.length >= 2 && !currentFilesList[1].isPdf) {
+                    document.getElementById("formatFilter").value = "Card";
+                    updateFormatView();
+                    setPreviewSlot(0, currentFilesList[0]);
+                    setPreviewSlot(1, currentFilesList[1]);
+                } else {
+                    setPreviewSlot(0, fileObj);
+                }
+            } else {
+                if (currentFormat === "Card" && currentFilesList.length > 1) {
+                    let slotChoice = prompt(`"${fileObj.name}" ko kis box mein dekhna hai?\n1 -> Front Side (Box 1)\n2 -> Back Side (Box 2)`, "1");
+                    if (slotChoice === "2") {
+                        setPreviewSlot(1, fileObj);
+                    } else if (slotChoice === "1") {
+                        setPreviewSlot(0, fileObj);
+                    }
+                } else {
+                    setPreviewSlot(0, fileObj);
+                }
+            }
+        }
+    }
+
+    function setPreviewSlot(slotIndex, fileObj) {
+        slotFiles[slotIndex] = fileObj;
+        let container = document.getElementById(`containerPreview${slotIndex + 1}`);
+
+        if (fileObj.isPdf) {
+            container.innerHTML = `
+                <embed src="${fileObj.blobUrl}" type="application/pdf" />
+                <div class="file-caption" style="margin-top:6px; font-weight:bold; color:#1e3c72; font-size:12px;">📄 ${fileObj.name}</div>
+            `;
+        } else {
+            container.innerHTML = `
+                <img id="imgPreview${slotIndex + 1}" src="${fileObj.blobUrl}" alt="${fileObj.name}">
+                <div class="file-caption" style="margin-top:6px; font-weight:bold; color:#1e3c72; font-size:12px;">🖼️ ${fileObj.name}</div>
+            `;
+            applyQualityFilter();
+        }
+    }
+
+    function updateFormatView() {
+        let format = document.getElementById("formatFilter").value;
+        let boxPreview2 = document.getElementById("boxPreview2");
+        let label1 = document.getElementById("labelPreview1");
+        let printableArea = document.getElementById("printableArea");
+
+        if (format === "A4") {
+            boxPreview2.style.display = "none";
+            label1.innerText = "📍 Full A4 Document Preview (Drag Here or Click to Edit):";
+            printableArea.classList.remove("print-mode-card");
+            printableArea.classList.add("print-mode-a4");
+        } else {
+            boxPreview2.style.display = "block";
+            label1.innerText = "📍 Front Side / Page 1 (Drag Here or Click to Edit):";
+            printableArea.classList.remove("print-mode-a4");
+            printableArea.classList.add("print-mode-card");
+        }
+    }
+
+    function directPrintByIndex(fileIndex) {
+        let fileObj = currentFilesList[fileIndex];
+        if (!fileObj) return;
+
+        if (fileObj.isPdf) {
+            let oldFrame = document.getElementById("pdfPrintFrame");
+            if (oldFrame) oldFrame.remove();
+
+            let iframe = document.createElement("iframe");
+            iframe.id = "pdfPrintFrame";
+            iframe.style.position = "fixed";
+            iframe.style.right = "0";
+            iframe.style.bottom = "0";
+            iframe.style.width = "0";
+            iframe.style.height = "0";
+            iframe.style.border = "0";
+            iframe.src = fileObj.blobUrl;
+            document.body.appendChild(iframe);
+
+            iframe.onload = function() {
+                setTimeout(() => {
+                    try {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    } catch (e) {
+                        window.open(fileObj.blobUrl, "_blank");
+                    }
+                }, 400);
+            };
+        } else {
+            let format = document.getElementById("formatFilter").value;
+            let imgStyle = format === "Card"
+                ? "width:85.6mm; height:54mm; object-fit:fill; border:1px solid #999; margin-top:15mm;"
+                : "max-width:100%; max-height:95vh; object-fit:contain;";
+
+            let printWin = window.open("", "_blank");
+            printWin.document.write(`
+                <html>
+                <head><title>Print - ${fileObj.name}</title></head>
+                <body style="margin:0; display:flex; justify-content:center; align-items:flex-start;">
+                    <img src="${fileObj.blobUrl}" style="${imgStyle}" onload="setTimeout(()=>{window.print(); window.close();}, 300)">
+                </body>
+                </html>
+            `);
+            printWin.document.close();
+        }
+    }
+
+    function triggerWorkspacePrint() {
+        let firstSlot = slotFiles[0];
+        if (!firstSlot) {
+            alert("Pehle koi document preview mein load karein!");
+            return;
+        }
+        if (firstSlot.isPdf) {
+            let idx = currentFilesList.indexOf(firstSlot);
+            directPrintByIndex(idx !== -1 ? idx : 0);
+        } else {
+            window.print();
+        }
+    }
+
+    function openEditModal(slotIndex) {
+        let fileObj = slotFiles[slotIndex];
+        if (!fileObj) {
+            alert("Pehle is box mein koi image drag karein ya View button dabayein!");
+            return;
+        }
+        if (fileObj.isPdf) {
+            alert("PDF file direct print ke liye ready hai. Cropping sirf photo/image par kaam karti hai.");
+            return;
+        }
+
+        activePreviewSlot = slotIndex;
+        let modal = document.getElementById("editModal");
+        let modalContainer = document.getElementById("modalContainerBox");
+        modalContainer.innerHTML = `<img id="modalCropperImage" src="${fileObj.blobUrl}" alt="Edit">`;
+        modal.style.display = "flex";
+        document.getElementById("customDegreeInput").value = 0;
+
+        if (cropperInstance) cropperInstance.destroy();
+
+        setTimeout(() => {
+            let modalImg = document.getElementById("modalCropperImage");
+            cropperInstance = new Cropper(modalImg, {
+                aspectRatio: NaN,
+                viewMode: 0,
+                autoCropArea: 0.95,
+                responsive: true,
+                background: false
+            });
+        }, 150);
+    }
+
+    function closeEditModal() {
+        document.getElementById("editModal").style.display = "none";
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+    }
+
+    function rotateImage(angle) {
+        if (cropperInstance) {
+            cropperInstance.rotate(angle);
+            let currentRot = Math.round(cropperInstance.getData().rotate || 0);
+            document.getElementById("customDegreeInput").value = currentRot;
+        }
+    }
+
+    function applyCustomDegree() {
+        let deg = parseFloat(document.getElementById("customDegreeInput").value) || 0;
+        if (cropperInstance) cropperInstance.rotateTo(deg);
+    }
+
+    function changeAspectRatio() {
+        let val = document.getElementById("aspectRatioSelect").value;
+        if (cropperInstance) cropperInstance.setAspectRatio(val === 'NaN' ? NaN : parseFloat(val));
+    }
+
+    function resetCropper() {
+        if (cropperInstance) {
+            cropperInstance.reset();
+            document.getElementById("customDegreeInput").value = 0;
+        }
+    }
+
+    function saveCroppedChanges() {
+        if (!cropperInstance) return;
+
+        let canvas = cropperInstance.getCroppedCanvas({
+            width: 1600,
+            fillColor: '#ffffff',
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high',
+        });
+
+        let croppedDataUrl = canvas.toDataURL("image/jpeg", 0.95);
+
+        let updatedObj = {
+            name: slotFiles[activePreviewSlot].name,
+            src: croppedDataUrl,
+            blobUrl: croppedDataUrl,
+            isPdf: false
+        };
+
+        setPreviewSlot(activePreviewSlot, updatedObj);
+        closeEditModal();
+    }
+
+    function applyQualityFilter() {
+        let quality = document.getElementById("qualityFilter").value;
+        [1, 2].forEach(num => {
+            let imgElem = document.getElementById(`imgPreview${num}`);
+            if (!imgElem) return;
+            if (quality === 'magic') {
+                imgElem.style.filter = 'contrast(145%) brightness(108%) saturate(120%)';
+            } else if (quality === 'grayscale') {
+                imgElem.style.filter = 'grayscale(100%) contrast(160%)';
+            } else {
+                imgElem.style.filter = 'none';
+            }
+        });
+    }
+
+    function downloadActiveFile() {
+        let fileObj = slotFiles[0];
+        if (!fileObj) {
+            alert("Pehle koi file select karein!");
+            return;
+        }
+        let link = document.createElement('a');
+        link.download = fileObj.name;
+        link.href = fileObj.blobUrl;
+        link.click();
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.ctrlKey && event.key === 'p') {
+            event.preventDefault();
+            triggerWorkspacePrint();
+        }
+    });
+</script>
+
+</body>
+</html>

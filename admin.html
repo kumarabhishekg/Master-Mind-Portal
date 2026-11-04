@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mastermind Admin Dashboard</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background-color: #f4f7f6; display: flex; height: 100vh; overflow: hidden; }
+
+        .sidebar { width: 260px; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); color: white; display: flex; flex-direction: column; padding-top: 20px; box-shadow: 4px 0 15px rgba(0,0,0,0.1); z-index: 10; flex-shrink: 0; overflow-y: auto; }
+        .sidebar h2 { text-align: center; font-size: 20px; margin-bottom: 25px; color: #ffd700; letter-spacing: 1px; }
+        .sidebar button { background: none; border: none; color: #d1e0ff; padding: 12px 18px; text-align: left; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.3s; width: 100%; display: flex; align-items: center; gap: 10px; border-left: 4px solid transparent; white-space: nowrap; }
+        .sidebar button:hover, .sidebar button.active { background-color: rgba(255, 255, 255, 0.15); color: white; border-left: 4px solid #ffd700; }
+
+        .main-content { flex-grow: 1; padding: 30px; overflow-y: auto; background-color: #f8fafc; }
+        .section { display: none; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .section.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        h3 { color: #1e3c72; margin-top: 0; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #edf2f7; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; font-size: 20px; }
+        .search-box { padding: 10px 15px; border: 1.5px solid #cbd5e1; border-radius: 8px; width: 280px; font-size: 14px; outline: none; }
+
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px 10px; text-align: center; font-size: 13px; }
+        th { background-color: #1e3c72; color: white; font-weight: 600; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .no-data { color: #888; font-style: italic; padding: 20px !important; }
+
+        .complete-btn { background-color: #0d6efd; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; margin: 2px; }
+        .view-btn { background-color: #198754; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; margin: 2px; }
+        .del-btn { background-color: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; margin: 2px; }
+        .block-btn { background-color: #ffc107; color: #000; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; margin: 2px; }
+        .unblock-btn { background-color: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; margin: 2px; }
+        
+        .status-badge { padding: 4px 8px; border-radius: 20px; font-weight: bold; font-size: 11px; display: inline-block; }
+        .status-active { background-color: #d1e7dd; color: #0f5132; }
+        .status-blocked { background-color: #f8d7da; color: #842029; }
+
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
+        .modal-content { background-color: white; padding: 30px; border-radius: 16px; width: 700px; max-width: 92%; max-height: 88vh; overflow-y: auto; position: relative; }
+        .close-btn { position: absolute; right: 20px; top: 15px; font-size: 26px; font-weight: bold; cursor: pointer; color: #aaa; }
+        
+        .doc-block { margin-bottom: 18px; }
+        .doc-heading-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px; }
+        .doc-heading-title { font-weight: bold; color: #111827; font-size: 14px; margin: 0; }
+        .doc-links a { text-decoration: none; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 4px; margin-left: 4px; display: inline-block; }
+        .link-view { background: #e0f2fe; color: #0369a1; }
+        .link-dl { background: #dcfce7; color: #15803d; }
+
+        .preview-img { width: 100%; max-height: 260px; object-fit: contain; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; background: #f8fafc; padding: 5px; display: block; }
+        .preview-pdf { width: 100%; height: 300px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; background: #f8fafc; display: block; }
+        .admin-send-box { background: #f1f5f9; border: 1.5px dashed #cbd5e1; padding: 15px; border-radius: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>⚡ Mastermind Admin</h2>
+    <button onclick="switchTab('users', this)" class="active">👤 Registered Users</button>
+    <button onclick="switchTab('csc', this)">📄 Pending CSC</button>
+    <button onclick="switchTab('banking', this)">🏦 Pending Banking</button>
+    <button onclick="switchTab('gst', this)">📊 Pending GST</button>
+    <button onclick="switchTab('travel', this)">🚆 Pending Travel</button>
+    <button onclick="switchTab('instantPrint', this)" style="color: #ffd700; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 15px;">⚡ Instant Print</button>
+    <button onclick="switchTab('completed', this)">✅ Completed Work</button>
+</div>
+
+<div class="main-content">
+    
+    <div id="users" class="section active">
+        <h3><span>Registered Users</span> <input type="text" id="searchUsers" class="search-box" onkeyup="filterTable('searchUsers', 'userTableBody')" placeholder="🔍 Search User..."></h3>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Sr.</th><th>Name</th><th>Mobile</th><th>Email</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="userTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="csc" class="section">
+        <h3><span>Pending CSC Applications</span> <input type="text" id="searchCSC" class="search-box" onkeyup="filterTable('searchCSC', 'cscTableBody')" placeholder="🔍 Search CSC..."></h3>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Sr.</th><th>Service Name</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="cscTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="banking" class="section">
+        <h3><span>Pending Banking</span> <input type="text" id="searchBanking" class="search-box" onkeyup="filterTable('searchBanking', 'bankingTableBody')" placeholder="🔍 Search Banking..."></h3>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Sr.</th><th>Service Name</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="bankingTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="gst" class="section">
+        <h3><span>Pending GST Services</span> <input type="text" id="searchGST" class="search-box" onkeyup="filterTable('searchGST', 'gstTableBody')" placeholder="🔍 Search GST..."></h3>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Sr.</th><th>Service Name</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="gstTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="travel" class="section">
+        <h3><span>Pending Travel Bookings</span> <input type="text" id="searchTravel" class="search-box" onkeyup="filterTable('searchTravel', 'travelTableBody')" placeholder="🔍 Search Travel..."></h3>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Sr.</th><th>Booking Type</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="travelTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="instantPrint" class="section">
+        <h3><span>⚡ Instant Print Requests</span> <input type="text" id="searchInstant" class="search-box" onkeyup="filterTable('searchInstant', 'instantTableBody')" placeholder="🔍 Search..."></h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sr.</th>
+                        <th>Customer Name</th>
+                        <th>Files Count</th>
+                        <th>Total Pages</th>
+                        <th>Work Details</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="instantTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="completed" class="section">
+        <h3><span>✅ Completed Work History</span> <input type="text" id="searchCompleted" class="search-box" onkeyup="filterTable('searchCompleted', 'completedTableBody')" placeholder="🔍 Search..."></h3>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Sr.</th><th>Category</th><th>Service Name</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="completedTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="detailsModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('detailsModal')">&times;</span>
+        <h4 style="color: #1e3c72; margin-top:0;">📄 Application Full Details</h4>
+        <div id="modalBodyText" style="line-height: 1.6; color: #333;"></div>
+        
+        <div class="admin-send-box">
+            <h5 style="color: #1e3c72; margin: 0 0 10px 0;">📤 Send Document Back to Sender / User</h5>
+            <div id="targetUserBox"></div> 
+            <input type="text" id="sendDocTitle" placeholder="Document Title (e.g. Ready Certificate / Print PDF)" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            <input type="file" id="sendDocFile" style="width: 100%; margin-bottom: 10px;"><br>
+            <button onclick="sendDocumentFromApp()" class="complete-btn" style="width: 100%; padding: 10px; background-color: #198754;">Send Document to Sender</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchTab(tabId, btn) {
+        document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+        document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        btn.classList.add('active');
+        loadAllData();
+    }
+
+    function filterTable(inputId, tableBodyId) {
+        let input = document.getElementById(inputId).value.toLowerCase();
+        let rows = document.getElementById(tableBodyId).getElementsByTagName("tr");
+        for (let i = 0; i < rows.length; i++) {
+            let rowText = rows[i].innerText.toLowerCase();
+            rows[i].style.display = rowText.includes(input) ? "" : "none";
+        }
+    }
+
+    function loadAllData() {
+        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
+        let userBody = document.getElementById("userTableBody");
+        if (users.length === 0) {
+            userBody.innerHTML = `<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>`;
+        } else {
+            userBody.innerHTML = users.map((u, i) => {
+                let status = u.status || "Active";
+                let statusClass = status === "Blocked" ? "status-blocked" : "status-active";
+                let btnText = status === "Blocked" ? "Unblock" : "Block";
+                let btnClass = status === "Blocked" ? "unblock-btn" : "block-btn";
+                return `<tr>
+                    <td>${i+1}</td>
+                    <td><b>${u.name || 'N/A'}</b></td>
+                    <td>${u.mobile}</td>
+                    <td>${u.email}</td>
+                    <td><span class="status-badge ${statusClass}">${status}</span></td>
+                    <td><button class="${btnClass}" onclick="toggleBlockUser(${i})">${btnText}</button></td>
+                </tr>`;
+            }).join('');
+        }
+
+        loadTableData("cscApplications", "cscTableBody");
+        loadTableData("bankingApplications", "bankingTableBody");
+        loadTableData("gstApplications", "gstTableBody");
+        loadTableData("travelApplications", "travelTableBody");
+        loadInstantPrintData();
+        loadCompletedData();
+    }
+
+    function toggleBlockUser(index) {
+        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
+        if (users[index]) {
+            users[index].status = users[index].status === "Blocked" ? "Active" : "Blocked";
+            localStorage.setItem("mastermindUsers", JSON.stringify(users));
+            loadAllData();
+        }
+    }
+
+    function loadTableData(storageKey, tbodyId) {
+        let rawData = JSON.parse(localStorage.getItem(storageKey)) || [];
+        let pendingData = rawData.map((item, index) => ({...item, originalIndex: index})).filter(item => item.status !== "Completed");
+        let tbody = document.getElementById(tbodyId);
+        
+        if (pendingData.length === 0) { 
+            tbody.innerHTML = `<tr><td colspan="5" class="no-data">Koi pending application nahi hai.</td></tr>`; 
+            return; 
+        }
+
+        tbody.innerHTML = pendingData.map((item, i) => {
+            return `<tr>
+                <td>${i+1}</td>
+                <td><b>${item.serviceName || 'N/A'}</b></td>
+                <td>${item.sender || 'N/A'}</td>
+                <td><span class="status-badge" style="background:#fff3cd; color:#856404;">${item.status || "Pending"}</span></td>
+                <td>
+                    <button class="complete-btn" onclick="markAsCompleted('${storageKey}', ${item.originalIndex})">Complete</button>
+                    <button class="view-btn" onclick="showDetails('${storageKey}', ${item.originalIndex})">View</button>
+                    <button class="del-btn" onclick="deleteSingleItem('${storageKey}', ${item.originalIndex})">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function markAsCompleted(storageKey, index) {
+        if(confirm("Kya aap is application ko 'Completed' mark karna chahte hain?")) {
+            let data = JSON.parse(localStorage.getItem(storageKey)) || [];
+            if(data[index]) {
+                data[index].status = "Completed";
+                localStorage.setItem(storageKey, JSON.stringify(data));
+                loadAllData();
+            }
+        }
+    }
+
+    // Har file ko uske exact form label (e.g. Member 1 Front Side, PAN Proof, etc.) ke sath render karna
+    function renderFileElement(fileSrc, labelText, index) {
+        if (!fileSrc || typeof fileSrc !== "string") return "";
+        let isPdf = fileSrc.toLowerCase().endsWith(".pdf") || fileSrc.includes("application/pdf") || fileSrc.includes(".pdf?");
+        let cleanTitle = labelText || `Document / File ${index + 1}`;
+        let downloadExt = isPdf ? "pdf" : "jpg";
+
+        let previewMedia = isPdf
+            ? `<embed src="${fileSrc}" type="application/pdf" class="preview-pdf">`
+            : `<img src="${fileSrc}" class="preview-img" alt="${cleanTitle}">`;
+
+        return `
+            <div class="doc-block">
+                <div class="doc-heading-row">
+                    <p class="doc-heading-title">${cleanTitle}:</p>
+                    <div class="doc-links">
+                        <a href="${fileSrc}" target="_blank" class="link-view">🔍 Open</a>
+                        <a href="${fileSrc}" download="${cleanTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}.${downloadExt}" class="link-dl">⬇ Download</a>
+                    </div>
+                </div>
+                ${previewMedia}
+            </div>
+        `;
+    }
+
+    // UNIVERSAL FILE COLLECTOR: Sabhi services (CSC, PAN, Ration, Passport, Banking, GST, Travel) ke liye
+    function collectAllItemFiles(item) {
+        let allFiles = [];
+        let addedUrls = new Set();
+        let namesList = item.fileNamesList || item.docLabels || item.labels || [];
+
+        function addFile(src, customLabel) {
+            if (!src || typeof src !== "string" || addedUrls.has(src)) return;
+            addedUrls.add(src);
+            let idx = allFiles.length;
+            let finalLabel = customLabel || namesList[idx] || (idx === 0 ? "Front Photo / File 1" : idx === 1 ? "Back Photo / File 2" : `Document / File ${idx + 1}`);
+            allFiles.push({ src: src, label: finalLabel });
+        }
+
+        // 1. Agar universal filesArray [{label, url}] format mein save hai
+        if (item.filesArray && Array.isArray(item.filesArray)) {
+            item.filesArray.forEach((f, idx) => {
+                if (typeof f === "string") {
+                    addFile(f, namesList[idx]);
+                } else if (f && (f.url || f.file_url || f.data || f.src)) {
+                    addFile(f.url || f.file_url || f.data || f.src, f.label || f.title || f.name || namesList[idx]);
+                }
+            });
+        }
+
+        // 2. Agar documents object/dictionary format mein save hain
+        if (item.documents && Array.isArray(item.documents)) {
+            item.documents.forEach((d, idx) => {
+                if (typeof d === "string") {
+                    addFile(d, namesList[idx]);
+                } else if (d && (d.url || d.file_url || d.data || d.src)) {
+                    addFile(d.url || d.file_url || d.data || d.src, d.label || d.title || d.name || namesList[idx]);
+                }
+            });
+        }
+
+        // 3. Standard frontImg, file_url, backImg check
+        if (item.frontImg) addFile(item.frontImg, namesList[0] || "Front Photo / File 1");
+        if (item.file_url) addFile(item.file_url, namesList[0] || "Front Photo / File 1");
+        if (item.backImg) addFile(item.backImg, namesList[1] || "Back Photo / File 2");
+
+        // 4. extraDocs array (3rd, 4th, 5th... jitne bhi documents hon)
+        if (item.extraDocs && Array.isArray(item.extraDocs)) {
+            item.extraDocs.forEach((doc, idx) => {
+                let labelIndex = idx + 2; // front aur back ke baad wale labels
+                if (typeof doc === "string") {
+                    addFile(doc, namesList[labelIndex] || `Document / File ${labelIndex + 1}`);
+                } else if (doc && (doc.url || doc.file_url || doc.data || doc.src)) {
+                    addFile(doc.url || doc.file_url || doc.data || doc.src, doc.label || doc.title || doc.name || namesList[labelIndex] || `Document / File ${labelIndex + 1}`);
+                }
+            });
+        }
+
+        // 5. Kisi bhi custom property name (e.g. panDoc, passportCopy, member1Front, doc3, file3) ko automatically pakadna
+        const skipKeys = new Set(["serviceName", "aadhaarName", "customer_name", "mobile", "description", "sender", "status", "date", "time", "category", "storageKey", "originalIndex", "unique_id", "filesArray", "documents", "extraDocs", "fileNamesList", "docLabels", "labels", "frontImg", "backImg", "file_url"]);
+        
+        Object.keys(item).forEach(key => {
+            if (skipKeys.has(key)) return;
+            let val = item[key];
+            // Format camelCase key into clean readable label (e.g. "member1FrontSide" -> "Member 1 Front Side")
+            let cleanKeyLabel = key.replace(/([A-Z0-9])/g, ' $1').replace(/_/g, ' ').replace(/^./, s => s.toUpperCase()).trim();
+
+            if (typeof val === "string" && (val.startsWith("data:") || val.startsWith("http") || val.includes("/storage/"))) {
+                addFile(val, cleanKeyLabel);
+            } else if (Array.isArray(val)) {
+                val.forEach((v, i) => {
+                    if (typeof v === "string" && (v.startsWith("data:") || val.startsWith("http") || v.includes("/storage/"))) {
+                        addFile(v, `${cleanKeyLabel} ${i + 1}`);
+                    } else if (v && (v.url || v.file_url || v.data || v.src)) {
+                        addFile(v.url || v.file_url || v.data || v.src, v.label || v.name || `${cleanKeyLabel} ${i + 1}`);
+                    }
+                });
+            }
+        });
+
+        return allFiles;
+    }
+
+    function showDetails(storageKey, index) {
+        let data = JSON.parse(localStorage.getItem(storageKey)) || [];
+        let item = data[index];
+        if(!item) return;
+
+        let senderMobile = "";
+        if (item.sender) {
+            let match = item.sender.match(/([0-9]{10})/);
+            if (match) senderMobile = match[1];
+        }
+        if (!senderMobile && item.mobile && /^[0-9]{10}$/.test(item.mobile)) {
+            senderMobile = item.mobile;
+        }
+
+        let targetSelectHtml = `<select id="targetUserMobile" style="width: 100%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc;">`;
+        if (senderMobile) {
+            targetSelectHtml += `<option value="${senderMobile}">${item.sender || senderMobile} (${senderMobile})</option>`;
+        } else {
+            targetSelectHtml += `<option value="">No Sender Mobile Found</option>`;
+        }
+        targetSelectHtml += `</select>`;
+        document.getElementById("targetUserBox").innerHTML = targetSelectHtml;
+
+        let allFiles = collectAllItemFiles(item);
+        let docsHtml = allFiles.length > 0
+            ? allFiles.map((fileObj, idx) => renderFileElement(fileObj.src, fileObj.label, idx)).join('')
+            : `<p style="color:#888; font-style:italic;">Koi file uploaded nahi hai.</p>`;
+
+        document.getElementById("modalBodyText").innerHTML = `
+            <p><strong>Service:</strong> ${item.serviceName || 'N/A'}</p>
+            <p><strong>Name / Customer:</strong> ${item.aadhaarName || item.customer_name || 'N/A'}</p>
+            <p><strong>Mobile:</strong> ${item.mobile || 'N/A'}</p>
+            <p><strong>Description:</strong> ${item.description || 'N/A'}</p>
+            <p><strong>Sender Info:</strong> ${item.sender || 'N/A'}</p>
+            <hr>${docsHtml}
+        `;
+        document.getElementById("detailsModal").style.display = "flex";
+    }
+
+    async function sendDocumentFromApp() {
+        let mobileSelect = document.getElementById("targetUserMobile");
+        let mobile = mobileSelect ? mobileSelect.value.trim() : "";
+        let title = document.getElementById("sendDocTitle").value.trim();
+        let fileInput = document.getElementById("sendDocFile");
+
+        if(!title || fileInput.files.length === 0) {
+            alert("Title aur File dono zaroori hain!");
+            return;
+        }
+        if(!mobile) {
+            alert("Sender ka mobile number nahi mila!");
+            return;
+        }
+
+        let file = fileInput.files[0];
+        let formData = new FormData();
+        formData.append("file", file);
+        formData.append("customer_name", "Admin Issued");
+        formData.append("service_name", title);
+        formData.append("mobile", mobile);
+        formData.append("description", "Issued by Admin");
+
+        try {
+            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+                method: "POST",
+                body: formData
+            });
+            let result = await response.json();
+
+            if (result.status === "success") {
+                let docData = {
+                    targetMobile: mobile,
+                    title: title,
+                    fileName: file.name,
+                    fileUrl: result.file_url,
+                    date: new Date().toLocaleDateString()
+                };
+
+                let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
+                issuedList.push(docData);
+                localStorage.setItem("userIssuedDocs", JSON.stringify(issuedList));
+
+                alert(`Document safaltapurvak sender (Mobile: ${mobile}) ko bhej diya gaya hai!`);
+                document.getElementById("sendDocTitle").value = "";
+                fileInput.value = "";
+                closeModal('detailsModal');
+            } else {
+                alert("Upload failed: " + result.message);
+            }
+        } catch (err) {
+            alert("⚠️ Server connection error! Kripya check karein ki FastAPI server chal raha hai ya nahi.");
+        }
+    }
+
+    function deleteSingleItem(storageKey, index) {
+        if (confirm("Kya aap is record ko delete karna chahte hain?")) {
+            let data = JSON.parse(localStorage.getItem(storageKey)) || [];
+            data.splice(index, 1);
+            localStorage.setItem(storageKey, JSON.stringify(data));
+            loadAllData();
+        }
+    }
+
+    function loadInstantPrintData() {
+        let rawData = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+        let tbody = document.getElementById("instantTableBody");
+
+        if (rawData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="no-data">Koi instant print request nahi hai.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = rawData.map((item, index) => {
+            let allFiles = collectAllItemFiles(item);
+            let filesCount = allFiles.length || 1;
+
+            return `<tr>
+                <td>${index + 1}</td>
+                <td><b>${item.aadhaarName || 'Customer'}</b></td>
+                <td>📁 ${filesCount} File(s)</td>
+                <td>📄 ${filesCount} Page(s)</td>
+                <td style="text-align: left; font-size: 12px;">${item.description || 'Quick Upload'}</td>
+                <td>
+                    <button class="complete-btn" onclick="openEditorPage(${index})">⚡ Edit & Print</button>
+                    <button class="del-btn" onclick="deleteInstantItem(${index})">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function openEditorPage(index) {
+        localStorage.setItem("activeInstantIndex", index);
+        window.location.href = "QR C.html";
+    }
+
+    function deleteInstantItem(index) {
+        if(confirm("Kya aap is record ko delete karna chahte hain?")) {
+            let data = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+            data.splice(index, 1);
+            localStorage.setItem("instantPrintQueue", JSON.stringify(data));
+            loadInstantPrintData();
+        }
+    }
+
+    function loadCompletedData() {
+        let tbody = document.getElementById("completedTableBody");
+        let categories = [
+            { key: "cscApplications", name: "CSC" }, 
+            { key: "bankingApplications", name: "Banking" }, 
+            { key: "gstApplications", name: "GST" }, 
+            { key: "travelApplications", name: "Travel" }
+        ];
+        let allCompleted = [];
+
+        categories.forEach(cat => {
+            let data = JSON.parse(localStorage.getItem(cat.key)) || [];
+            data.forEach((item, index) => { 
+                if (item.status === "Completed") {
+                    allCompleted.push({...item, category: cat.name, storageKey: cat.key, originalIndex: index}); 
+                }
+            });
+        });
+
+        if (allCompleted.length === 0) { 
+            tbody.innerHTML = `<tr><td colspan="6" class="no-data">Koi completed work nahi hai.</td></tr>`; 
+            return; 
+        }
+
+        tbody.innerHTML = allCompleted.map((item, i) => {
+            return `<tr>
+                <td>${i+1}</td>
+                <td><b>${item.category}</b></td>
+                <td>${item.serviceName || 'N/A'}</td>
+                <td>${item.sender || 'N/A'}</td>
+                <td><span class="status-badge" style="background:#d1e7dd; color:#0f5132;">Completed</span></td>
+                <td>
+                    <button class="view-btn" onclick="showDetails('${item.storageKey}', ${item.originalIndex})">View</button>
+                    <button class="del-btn" onclick="deleteSingleItem('${item.storageKey}', ${item.originalIndex})">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function closeModal(id) { document.getElementById(id).style.display = "none"; }
+
+    window.onload = loadAllData;
+</script>
+
+</body>
+</html>

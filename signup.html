@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign Up - Mastermind Portal</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f1f1f1; font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; user-select: none; }
+        .signup-box { background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; box-sizing: border-box; }
+        .signup-box h2 { text-align: center; color: green; margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; user-select: text; background: #f8fafc; }
+        .captcha-container { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .captcha-box { background-color: #e9ecef; padding: 10px 15px; border: 1px dashed #666; border-radius: 5px; font-weight: bold; font-size: 20px; letter-spacing: 4px; color: #333; text-align: center; flex-grow: 1; font-family: monospace; text-decoration: line-through; }
+        .refresh-btn { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .submit-btn { width: 100%; padding: 12px; background-color: green; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .submit-btn:hover { background-color: darkgreen; }
+        .login-text { text-align: center; margin-top: 20px; font-size: 14px; color: #555; }
+        .login-text a { color: blue; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+<div class="signup-box">
+    <h2>Create Account</h2>
+    <form id="signupForm" onsubmit="return validateSignup(event)">
+        <div class="input-group">
+            <label>Full Name</label>
+            <input type="text" id="fullname" placeholder="Enter your full name" required>
+        </div>
+        <div class="input-group">
+            <label>Mobile Number (10 Digits)</label>
+            <input type="tel" id="mobile" placeholder="Enter 10 digit mobile number" maxlength="10" required>
+        </div>
+        <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" id="email" placeholder="Enter your email" required>
+        </div>
+        <div class="input-group">
+            <label>New Password</label>
+            <input type="password" id="password" placeholder="Enter new password" required>
+        </div>
+        <div class="input-group">
+            <label>Confirm Password</label>
+            <input type="password" id="confirmPassword" placeholder="Re-enter password" required>
+        </div>
+        <div class="input-group">
+            <label>Security Verification</label>
+            <div class="captcha-container">
+                <div id="captchaDisplay" class="captcha-box"></div>
+                <button type="button" class="refresh-btn" onclick="generateCaptcha()">🔄</button>
+            </div>
+            <input type="text" id="captchaInput" placeholder="Enter code shown above" required>
+        </div>
+        <button type="submit" class="submit-btn">Sign Up</button>
+    </form>
+    <div class="login-text">
+        Already have an account? <a href="login.html">Login</a>
+    </div>
+</div>
+
+<script>
+    // --- F12 & Inspect Element Security Protection ---
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F12' || e.keyCode === 123) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    let generatedCaptcha = "";
+    function generateCaptcha() {
+        const chars = "0123456789";
+        generatedCaptcha = "";
+        for (let i = 0; i < 6; i++) {
+            generatedCaptcha += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById("captchaDisplay").innerText = generatedCaptcha;
+    }
+    window.onload = function() { generateCaptcha(); };
+
+    function validateSignup(event) {
+        event.preventDefault();
+        var fullname = document.getElementById("fullname").value;
+        var mobile = document.getElementById("mobile").value;
+        var email = document.getElementById("email").value;
+        var password = document.getElementById("password").value;
+        var confirmPassword = document.getElementById("confirmPassword").value;
+        var userInputCaptcha = document.getElementById("captchaInput").value;
+
+        var mobilePattern = /^[0-9]{10}$/;
+        if (!mobilePattern.test(mobile)) {
+            alert("Kripya valid 10-digit ka mobile number daalein!");
+            return false;
+        }
+        if (password !== confirmPassword) {
+            alert("Password aur Confirm Password match nahi ho rahe hain!");
+            return false;
+        }
+        if (userInputCaptcha !== generatedCaptcha) {
+            alert("Galat Captcha code! Kripya dobara try karein.");
+            generateCaptcha();
+            document.getElementById("captchaInput").value = "";
+            return false;
+        }
+
+        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
+        
+        let existingUser = users.find(u => u.mobile === mobile);
+        if(existingUser) {
+            alert("Yeh mobile number pehle se registered hai!");
+            return false;
+        }
+
+        users.push({ name: fullname, mobile: mobile, email: email, password: password, status: "Active" });
+        localStorage.setItem("mastermindUsers", JSON.stringify(users));
+
+        alert("Registration Successful! Ab aap login kar sakte hain.");
+        window.location.href = "login.html";
+    }
+</script>
+</body>
+</html>

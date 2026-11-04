@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ayushman Card Application - Mastermind Portal</title>
+
+    <style>
+        body { margin: 0px; padding: 0px; background-color: #f1f1f1; font-family: Arial, sans-serif; }
+        shortcut { position: sticky; top: 0px; color: red; padding: 5px 10px; font-size: 20px; font-style: italic; background-color: lightgray; display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; width: 100%; box-sizing: border-box; z-index: 1000; }
+        
+        .form-container { max-width: 600px; margin: 30px auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); }
+        .form-container h2.main-title { text-align: center; color: #28a745; margin-bottom: 10px; font-size: 28px; }
+        .price-tag { text-align: center; font-size: 18px; font-weight: bold; color: #d9534f; margin-bottom: 20px; }
+        
+        .highlight-box { text-align: center; background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 2px solid #ffeeba; margin-bottom: 25px; font-weight: bold; font-size: 16px; }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 16px; background: #f8fafc; }
+        
+        .section-title { background: #f8f9fa; padding: 10px; border-left: 5px solid #28a745; margin-top: 30px; margin-bottom: 15px; font-weight: bold; color: #333; }
+        
+        .submit-btn { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s ease; margin-top: 10px; }
+        .submit-btn:hover { background-color: #218838; }
+
+        .active-user-box { background-color: #e8f4fd; border: 1px dashed #007bff; padding: 12px; border-radius: 8px; margin-bottom: 25px; text-align: center; font-size: 15px; color: #007bff; }
+        .active-user-box span { font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+    
+<shortcut>
+    <a href="HOME.html" style="color: red; text-decoration: none;">MASTERMIND</a>
+    <a href="HOME.html">HOME</a> 
+    <a href="">SERVICES</a>
+    <a href="">SBI</a>
+    <a href="">About</a>
+    <a href="#" id="authLink" style="text-align: right;">LOGOUT</a>
+    <div id="google_translate_element" style="margin-left: 15px; display: inline-block;"></div>
+</shortcut>
+
+<div class="form-container">
+    <div class="highlight-box">
+        ⚠️ <b>Dhyan Dein:</b> Ayushman Card tabhi ban payega jab beneficiary ka naam sarkari list (PMJAY list) mein hoga!
+    </div>
+
+    <h2 class="main-title">Ayushman Card Application</h2>
+    <div class="price-tag">💵 Service Fee / Price: <b>₹100</b></div>
+    
+    <div class="active-user-box">
+        👤 Application will be sent by:<br>
+        <span id="displaySenderName">Loading...</span>
+    </div>
+
+    <form onsubmit="return submitAyushmanForm(event)">
+        
+        <div class="section-title">Personal Details</div>
+        <div class="input-group">
+            <label>Applicant Name (Aadhaar ke anusaar)</label>
+            <input type="text" id="applicantName" placeholder="Enter Full Name" required>
+        </div>
+        <div class="input-group">
+            <label>Mobile Number (10 Digits)</label>
+            <input type="tel" id="mobile" placeholder="Enter mobile number" maxlength="10" required>
+        </div>
+
+        <div class="section-title">Aadhaar Card Upload (Image or PDF)</div>
+        <div class="input-group">
+            <label>Upload Aadhaar Card (Front Side)</label>
+            <input type="file" id="aadhaarFront" accept="image/*,.pdf" required>
+        </div>
+        <div class="input-group">
+            <label>Upload Aadhaar Card (Back Side)</label>
+            <input type="file" id="aadhaarBack" accept="image/*,.pdf" required>
+        </div>
+
+        <button type="submit" id="submitBtn" class="submit-btn">Submit Ayushman Application (₹100)</button>
+    </form>
+</div>
+
+<!-- GOOGLE TRANSLATE SCRIPT -->
+<script type="text/javascript">
+    function googleTranslateElementInit() {
+        if (window.google && window.google.translate) {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'hi,en',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
+        }
+    }
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script>
+    let currentSenderMobile = "";
+    let currentSenderName = "";
+
+    window.onload = function() {
+        const isLoggedin = localStorage.getItem("isLoggedIn");
+        currentSenderMobile = localStorage.getItem("loggedInUserMobile");
+        currentSenderName = localStorage.getItem("loggedInUserName");
+        const authLink = document.getElementById("authLink");
+
+        if (isLoggedin === "true" && currentSenderMobile) {
+            let nameSpan = document.getElementById("displaySenderName");
+            if(nameSpan) nameSpan.innerText = `${currentSenderName} (${currentSenderMobile})`;
+            
+            if(authLink) {
+                authLink.innerText = "LOGOUT";
+                authLink.href = "#";
+                authLink.onclick = function(e) {
+                    e.preventDefault();
+                    localStorage.removeItem("isLoggedIn");
+                    localStorage.removeItem("loggedInUserName");
+                    localStorage.removeItem("loggedInUserMobile");
+                    alert("Logged out successfully!");
+                    window.location.href = "HOME.html";
+                };
+            }
+        } else {
+            alert("Form bharne ke liye pehle Login karna zaroori hai!");
+            window.location.href = "login.html";
+        }
+    };
+
+    // Helper function to upload file to FastAPI server (`/api/upload`)
+    async function uploadFileToServer(file, customerName, serviceName, mobile, desc) {
+        if (!file) return "";
+        let formData = new FormData();
+        formData.append("file", file);
+        formData.append("customer_name", customerName || "Customer");
+        formData.append("service_name", serviceName || "Service");
+        formData.append("mobile", mobile || "Not Provided");
+        formData.append("description", desc || "");
+
+        try {
+            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+                method: "POST",
+                body: formData
+            });
+            let result = await response.json();
+            if (result.status === "success") {
+                return result.file_url;
+            } else {
+                throw new Error(result.message || "Upload failed");
+            }
+        } catch (err) {
+            console.error("Server upload error, falling back to base64:", err);
+            // Fallback to base64 if server is offline
+            return await new Promise((resolve) => {
+                let reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+
+    async function submitAyushmanForm(event) {
+        event.preventDefault();
+        let submitBtn = document.getElementById("submitBtn");
+        submitBtn.innerText = "Uploading Files to Server... Please wait";
+        submitBtn.disabled = true;
+
+        var mobile = document.getElementById("mobile").value;
+        var applicantName = document.getElementById("applicantName").value;
+
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            alert("Kripya valid 10-digit mobile number daalein!");
+            submitBtn.innerText = "Submit Ayushman Application (₹100)";
+            submitBtn.disabled = false;
+            return false;
+        }
+
+        let senderInfo = currentSenderName + " (" + currentSenderMobile + ")";
+
+        try {
+            let frontFile = document.getElementById('aadhaarFront').files[0];
+            let backFile = document.getElementById('aadhaarBack').files[0];
+
+            // Server par dono files upload karein (Image ya PDF dono supported hain)
+            let frontUrl = await uploadFileToServer(frontFile, applicantName, "Ayushman Card", mobile, "Aadhaar Front");
+            let backUrl = await uploadFileToServer(backFile, applicantName, "Ayushman Card", mobile, "Aadhaar Back");
+
+            let applicationData = {
+                serviceName: "Ayushman Card (Fee: ₹100)",
+                sender: senderInfo,
+                aadhaarName: applicantName,
+                mobile: mobile,
+                description: "Ayushman Card Application with Aadhaar Front/Back (Fee: ₹100)", 
+                frontImg: frontUrl, 
+                backImg: backUrl,  
+                date: new Date().toLocaleDateString(),
+                status: "Pending"
+            };
+
+            let existingApplications = JSON.parse(localStorage.getItem("cscApplications")) || [];
+            existingApplications.push(applicationData);
+            localStorage.setItem("cscApplications", JSON.stringify(existingApplications));
+
+            alert("Ayushman Card Application Successfully Submitted (Fee: ₹100)!");
+            window.location.href = "H login.html";
+        } catch (error) {
+            console.error(error);
+            alert("Error: Form submit karne mein samasya aayi!");
+            submitBtn.innerText = "Submit Ayushman Application (₹100)";
+            submitBtn.disabled = false;
+        }
+        return false;
+    }
+</script>
+
+</body>
+</html>
