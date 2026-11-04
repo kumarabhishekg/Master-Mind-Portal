@@ -26,14 +26,8 @@ app.add_middleware(
 UPLOAD_DIR = "mastermind_storage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# फाइलों और स्टोरेज के लिए माunt
+# फाइलों और स्टोरेज के लिए mount
 app.mount("/storage", StaticFiles(directory=UPLOAD_DIR), name="storage")
-
-# अगर आपके प्रोजेक्ट में images या assets का फोल्डर है, तो फोटो लोड होने के लिए इन्हें माउंट करें
-if os.path.exists("images"):
-    app.mount("/images", StaticFiles(directory="images"), name="images")
-if os.path.exists("assets"):
-    app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 # Dependency डेटाबेस सेशन के लिए
 def get_db():
@@ -48,15 +42,7 @@ def get_db():
 def serve_home():
     return FileResponse("HOME.html")
 
-# 2. सभी HTML पेजेस (जैसे login.html आदि) को आटोमेटिक खोलने के लिए Dynamic Route
-@app.get("/{page_name}.html")
-def serve_html_pages(page_name: str):
-    file_path = f"{page_name}.html"
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    return JSONResponse(status_code=404, content={"message": "Page not found"})
-
-# 3. फाइल अपलोड एपीआई
+# 2. फाइल अपलोड एपीआई
 @app.post("/api/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -100,6 +86,23 @@ async def upload_file(
     except Exception as e:
         db.rollback()
         return {"status": "error", "message": str(e)}
+
+# 3. स्मार्ट कैच-ऑल रूट: सभी images, folders (banking, GST, treveling) और .html pages को automatically serve करेगा
+@app.get("/{file_path:path}")
+def serve_files_and_pages(file_path: str):
+    if ".." in file_path:
+        return JSONResponse(status_code=400, content={"message": "Invalid path"})
+    
+    # Agar file direct maujood hai (jaise caste.png, banking/aeps.png, login.html)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+        
+    # Agar .html lagana bhul gaye hon
+    html_path = f"{file_path}.html"
+    if os.path.exists(html_path) and os.path.isfile(html_path):
+        return FileResponse(html_path)
+        
+    return JSONResponse(status_code=404, content={"message": "File not found"})
 
 if __name__ == "__main__":
     import uvicorn
