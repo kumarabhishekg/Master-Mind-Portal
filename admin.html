@@ -51,7 +51,6 @@
 
         .preview-img { width: 100%; max-height: 260px; object-fit: contain; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; background: #f8fafc; padding: 5px; display: block; }
         .preview-pdf { width: 100%; height: 300px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; background: #f8fafc; display: block; }
-        .admin-send-box { background: #f1f5f9; border: 1.5px dashed #cbd5e1; padding: 15px; border-radius: 10px; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -59,10 +58,7 @@
 <div class="sidebar">
     <h2>⚡ Mastermind Admin</h2>
     <button onclick="switchTab('users', this)" class="active">👤 Registered Users</button>
-    <button onclick="switchTab('csc', this)">📄 Pending CSC</button>
-    <button onclick="switchTab('banking', this)">🏦 Pending Banking</button>
-    <button onclick="switchTab('gst', this)">📊 Pending GST</button>
-    <button onclick="switchTab('travel', this)">🚆 Pending Travel</button>
+    <button onclick="switchTab('csc', this)">📄 Pending Applications</button>
     <button onclick="switchTab('instantPrint', this)" style="color: #ffd700; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 15px;">⚡ Instant Print</button>
     <button onclick="switchTab('completed', this)">✅ Completed Work</button>
 </div>
@@ -80,41 +76,11 @@
     </div>
 
     <div id="csc" class="section">
-        <h3><span>Pending CSC Applications</span> <input type="text" id="searchCSC" class="search-box" onkeyup="filterTable('searchCSC', 'cscTableBody')" placeholder="🔍 Search CSC..."></h3>
+        <h3><span>Pending Applications & Documents</span> <input type="text" id="searchCSC" class="search-box" onkeyup="filterTable('searchCSC', 'cscTableBody')" placeholder="🔍 Search..."></h3>
         <div class="table-responsive">
             <table>
-                <thead><tr><th>Sr.</th><th>Service Name</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
+                <thead><tr><th>Sr.</th><th>Service Name</th><th>Customer Name</th><th>Mobile</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="cscTableBody"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="banking" class="section">
-        <h3><span>Pending Banking</span> <input type="text" id="searchBanking" class="search-box" onkeyup="filterTable('searchBanking', 'bankingTableBody')" placeholder="🔍 Search Banking..."></h3>
-        <div class="table-responsive">
-            <table>
-                <thead><tr><th>Sr.</th><th>Service Name</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody id="bankingTableBody"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="gst" class="section">
-        <h3><span>Pending GST Services</span> <input type="text" id="searchGST" class="search-box" onkeyup="filterTable('searchGST', 'gstTableBody')" placeholder="🔍 Search GST..."></h3>
-        <div class="table-responsive">
-            <table>
-                <thead><tr><th>Sr.</th><th>Service Name</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody id="gstTableBody"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="travel" class="section">
-        <h3><span>Pending Travel Bookings</span> <input type="text" id="searchTravel" class="search-box" onkeyup="filterTable('searchTravel', 'travelTableBody')" placeholder="🔍 Search Travel..."></h3>
-        <div class="table-responsive">
-            <table>
-                <thead><tr><th>Sr.</th><th>Booking Type</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody id="travelTableBody"></tbody>
             </table>
         </div>
     </div>
@@ -127,8 +93,6 @@
                     <tr>
                         <th>Sr.</th>
                         <th>Customer Name</th>
-                        <th>Files Count</th>
-                        <th>Total Pages</th>
                         <th>Work Details</th>
                         <th>Action</th>
                     </tr>
@@ -142,7 +106,7 @@
         <h3><span>✅ Completed Work History</span> <input type="text" id="searchCompleted" class="search-box" onkeyup="filterTable('searchCompleted', 'completedTableBody')" placeholder="🔍 Search..."></h3>
         <div class="table-responsive">
             <table>
-                <thead><tr><th>Sr.</th><th>Category</th><th>Service Name</th><th>Sender Info</th><th>Status</th><th>Action</th></tr></thead>
+                <thead><tr><th>Sr.</th><th>Service Name</th><th>Customer Name</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="completedTableBody"></tbody>
             </table>
         </div>
@@ -154,19 +118,10 @@
         <span class="close-btn" onclick="closeModal('detailsModal')">&times;</span>
         <h4 style="color: #1e3c72; margin-top:0;">📄 Application Full Details</h4>
         <div id="modalBodyText" style="line-height: 1.6; color: #333;"></div>
-        
-        <div class="admin-send-box">
-            <h5 style="color: #1e3c72; margin: 0 0 10px 0;">📤 Send Document Back to Sender / User</h5>
-            <div id="targetUserBox"></div> 
-            <input type="text" id="sendDocTitle" placeholder="Document Title (e.g. Ready Certificate / Print PDF)" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
-            <input type="file" id="sendDocFile" style="width: 100%; margin-bottom: 10px;"><br>
-            <button onclick="sendDocumentFromApp()" class="complete-btn" style="width: 100%; padding: 10px; background-color: #198754;">Send Document to Sender</button>
-        </div>
     </div>
 </div>
 
 <script>
-   <script>
     function switchTab(tabId, btn) {
         document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
         document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
@@ -184,87 +139,171 @@
         }
     }
 
-    // Server se registered users load karne ka function
-    async function loadUsersFromServer() {
+    async function loadAllData() {
+        // 1. Load Users from Server
         let userBody = document.getElementById("userTableBody");
         try {
-            let response = await fetch("/api/users");
-            let result = await response.json();
-            
-            if (result.status === "success") {
-                let users = result.data;
-                if (users.length === 0) {
-                    userBody.innerHTML = `<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>`;
-                } else {
-                    userBody.innerHTML = users.map((u, i) => {
-                        let status = u.status || "Active";
-                        let statusClass = status === "Blocked" ? "status-blocked" : "status-active";
-                        let btnText = status === "Blocked" ? "Unblock" : "Block";
-                        let btnClass = status === "Blocked" ? "unblock-btn" : "block-btn";
-                        return `<tr>
-                            <td>${i+1}</td>
-                            <td><b>${u.name || 'N/A'}</b></td>
-                            <td>${u.mobile || 'N/A'}</td>
-                            <td>${u.email || 'N/A'}</td>
-                            <td><span class="status-badge ${statusClass}">${status}</span></td>
-                            <td>
-                                <button class="${btnClass}" onclick="toggleBlockUser(${u.id})">${btnText}</button>
-                                <button class="del-btn" onclick="deleteUser(${u.id})">Delete</button>
-                            </td>
-                        </tr>`;
-                    }).join('');
-                }
+            let res = await fetch("/api/users");
+            let json = await res.json();
+            if (json.status === "success" && json.data.length > 0) {
+                userBody.innerHTML = json.data.map((u, i) => {
+                    let status = u.status || "Active";
+                    let statusClass = status === "Blocked" ? "status-blocked" : "status-active";
+                    let btnText = status === "Blocked" ? "Unblock" : "Block";
+                    let btnClass = status === "Blocked" ? "unblock-btn" : "block-btn";
+                    return `<tr>
+                        <td>${i+1}</td>
+                        <td><b>${u.name || 'N/A'}</b></td>
+                        <td>${u.mobile || 'N/A'}</td>
+                        <td>${u.email || 'N/A'}</td>
+                        <td><span class="status-badge ${statusClass}">${status}</span></td>
+                        <td>
+                            <button class="${btnClass}" onclick="toggleBlockUser(${u.id})">${btnText}</button>
+                            <button class="del-btn" onclick="deleteUser(${u.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } else {
+                userBody.innerHTML = `<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>`;
             }
-        } catch (err) {
-            console.error("Error loading users:", err);
+        } catch (e) {
             userBody.innerHTML = `<tr><td colspan="6" class="no-data">Server connection error.</td></tr>`;
         }
-    }
 
-    // Server par user ko block/unblock karne ka function
-    async function toggleBlockUser(userId) {
+        // 2. Load Applications from Server
         try {
-            let response = await fetch(`/api/users/block/${userId}`, { method: "POST" });
-            let result = await response.json();
-            if (result.status === "success") {
-                loadUsersFromServer();
-            } else {
-                alert("Status update karne mein samasya aayi.");
-            }
-        } catch (err) {
-            console.error("Error:", err);
-        }
-    }
-
-    // Server se user delete karne ka function
-    async function deleteUser(userId) {
-        if (confirm("Kya aap is registered user ko delete karna chahte hain?")) {
-            try {
-                let response = await fetch(`/api/users/${userId}`, { method: "DELETE" });
-                let result = await response.json();
-                if (result.status === "success") {
-                    loadUsersFromServer();
+            let res = await fetch("/api/applications/all");
+            let json = await res.json();
+            if (json.status === "success") {
+                let apps = json.data;
+                
+                // Pending Applications
+                let pendingApps = apps.filter(a => a.status !== "Completed");
+                let cscBody = document.getElementById("cscTableBody");
+                if (pendingApps.length > 0) {
+                    cscBody.innerHTML = pendingApps.map((item, i) => `<tr>
+                        <td>${i+1}</td>
+                        <td><b>${item.service_name || 'N/A'}</b></td>
+                        <td>${item.customer_name || 'N/A'}</td>
+                        <td>${item.mobile || 'N/A'}</td>
+                        <td><span class="status-badge" style="background:#fff3cd; color:#856404;">Pending</span></td>
+                        <td>
+                            <button class="complete-btn" onclick="markAsCompleted(${item.id})">Complete</button>
+                            <button class="view-btn" onclick='showServerDetails(${JSON.stringify(item)})'>View</button>
+                            <button class="del-btn" onclick="deleteApp(${item.id})">Delete</button>
+                        </td>
+                    </tr>`).join('');
                 } else {
-                    alert("User delete karne mein samasya aayi.");
+                    cscBody.innerHTML = `<tr><td colspan="6" class="no-data">Koi pending application nahi hai.</td></tr>`;
                 }
-            } catch (err) {
-                console.error("Error:", err);
+
+                // Completed Work
+                let completedApps = apps.filter(a => a.status === "Completed");
+                let compBody = document.getElementById("completedTableBody");
+                if (completedApps.length > 0) {
+                    compBody.innerHTML = completedApps.map((item, i) => `<tr>
+                        <td>${i+1}</td>
+                        <td><b>${item.service_name || 'N/A'}</b></td>
+                        <td>${item.customer_name || 'N/A'}</td>
+                        <td><span class="status-badge" style="background:#d1e7dd; color:#0f5132;">Completed</span></td>
+                        <td>
+                            <button class="view-btn" onclick='showServerDetails(${JSON.stringify(item)})'>View</button>
+                            <button class="del-btn" onclick="deleteApp(${item.id})">Delete</button>
+                        </td>
+                    </tr>`).join('');
+                } else {
+                    compBody.innerHTML = `<tr><td colspan="5" class="no-data">Koi completed work nahi hai.</td></tr>`;
+                }
             }
+        } catch (e) {
+            console.error("Error loading applications:", e);
+        }
+
+        // 3. Instant Print Queue (LocalStorage)
+        loadInstantPrintData();
+    }
+
+    async function toggleBlockUser(id) {
+        await fetch(`/api/users/block/${id}`, { method: "POST" });
+        loadAllData();
+    }
+
+    async function deleteUser(id) {
+        if (confirm("Kya aap is user ko delete karna chahte hain?")) {
+            await fetch(`/api/users/${id}`, { method: "DELETE" });
+            loadAllData();
         }
     }
 
-    // loadAllData function ke andar ise call karein
-    function loadAllData() {
-        loadUsersFromServer();
-        loadTableData("cscApplications", "cscTableBody");
-        loadTableData("bankingApplications", "bankingTableBody");
-        loadTableData("gstApplications", "gstTableBody");
-        loadTableData("travelApplications", "travelTableBody");
-        loadInstantPrintData();
-        loadCompletedData();
+    async function markAsCompleted(id) {
+        if (confirm("Is application ko Completed mark karein?")) {
+            await fetch(`/api/applications/complete/${id}`, { method: "POST" });
+            loadAllData();
+        }
     }
 
-    // Baaki helper functions (loadTableData, deleteSingleItem, etc.) waise hi rahenge jo pehle the.
+    async function deleteApp(id) {
+        if (confirm("Kya aap is record ko delete karna chahte hain?")) {
+            await fetch(`/api/applications/${id}`, { method: "DELETE" });
+            loadAllData();
+        }
+    }
+
+    function showServerDetails(item) {
+        let fileUrl = item.file_url;
+        let isPdf = fileUrl.toLowerCase().endsWith(".pdf") || fileUrl.includes(".pdf");
+        let preview = isPdf 
+            ? `<embed src="${fileUrl}" type="application/pdf" class="preview-pdf">` 
+            : `<img src="${fileUrl}" class="preview-img">`;
+
+        document.getElementById("modalBodyText").innerHTML = `
+            <p><strong>Service:</strong> ${item.service_name}</p>
+            <p><strong>Customer:</strong> ${item.customer_name}</p>
+            <p><strong>Mobile:</strong> ${item.mobile}</p>
+            <p><strong>Description:</strong> ${item.description}</p>
+            <hr>
+            <p><strong>Uploaded File:</strong></p>
+            <a href="${fileUrl}" target="_blank" class="link-view" style="padding:5px 10px; background:#e0f2fe; text-decoration:none; border-radius:4px;">🔍 Open File</a>
+            <a href="${fileUrl}" download class="link-dl" style="padding:5px 10px; background:#dcfce7; text-decoration:none; border-radius:4px; margin-left:10px;">⬇ Download</a>
+            <div style="margin-top:10px;">${preview}</div>
+        `;
+        document.getElementById("detailsModal").style.display = "flex";
+    }
+
+    function loadInstantPrintData() {
+        let rawData = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+        let tbody = document.getElementById("instantTableBody");
+        if (rawData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="no-data">Koi instant print request nahi hai.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = rawData.map((item, index) => `<tr>
+            <td>${index + 1}</td>
+            <td><b>${item.aadhaarName || 'Customer'}</b></td>
+            <td style="text-align: left; font-size: 12px;">${item.description || 'Quick Upload'}</td>
+            <td>
+                <button class="complete-btn" onclick="openEditorPage(${index})">⚡ Edit & Print</button>
+                <button class="del-btn" onclick="deleteInstantItem(${index})">Delete</button>
+            </td>
+        </tr>`).join('');
+    }
+
+    function openEditorPage(index) {
+        localStorage.setItem("activeInstantIndex", index);
+        window.location.href = "QR C.html";
+    }
+
+    function deleteInstantItem(index) {
+        if(confirm("Delete this request?")) {
+            let data = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+            data.splice(index, 1);
+            localStorage.setItem("instantPrintQueue", JSON.stringify(data));
+            loadInstantPrintData();
+        }
+    }
+
+    function closeModal(id) { document.getElementById(id).style.display = "none"; }
+
     window.onload = loadAllData;
 </script>
 
