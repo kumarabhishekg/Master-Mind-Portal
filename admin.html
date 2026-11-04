@@ -296,12 +296,10 @@
 
     function collectAllItemFiles(item) {
         let allFiles = [];
-        let addedUrls = new Set();
         let namesList = item.fileNamesList || item.docLabels || item.labels || [];
 
         function addFile(src, customLabel) {
-            if (!src || typeof src !== "string" || addedUrls.has(src)) return;
-            addedUrls.add(src);
+            if (!src || typeof src !== "string") return;
             let idx = allFiles.length;
             let finalLabel = customLabel || namesList[idx] || (idx === 0 ? "Aadhaar Card Front Photo" : idx === 1 ? "Aadhaar Card Back Photo" : `Document / File ${idx + 1}`);
             allFiles.push({ src: src, label: finalLabel });
