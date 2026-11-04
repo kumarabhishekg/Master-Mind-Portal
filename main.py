@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 import shutil
 import os
@@ -26,7 +26,14 @@ app.add_middleware(
 UPLOAD_DIR = "mastermind_storage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# फाइलों और स्टोरेज के लिए माunt
 app.mount("/storage", StaticFiles(directory=UPLOAD_DIR), name="storage")
+
+# अगर आपके प्रोजेक्ट में images या assets का फोल्डर है, तो फोटो लोड होने के लिए इन्हें माउंट करें
+if os.path.exists("images"):
+    app.mount("/images", StaticFiles(directory="images"), name="images")
+if os.path.exists("assets"):
+    app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 # Dependency डेटाबेस सेशन के लिए
 def get_db():
@@ -36,11 +43,20 @@ def get_db():
     finally:
         db.close()
 
-# नया रूट: वेबसाइट खोलने पर सीधे HOME.html दिखेगा
+# 1. मुख्य होमपेज लोड करने के लिए
 @app.get("/")
 def serve_home():
     return FileResponse("HOME.html")
 
+# 2. सभी HTML पेजेस (जैसे login.html आदि) को आटोमेटिक खोलने के लिए Dynamic Route
+@app.get("/{page_name}.html")
+def serve_html_pages(page_name: str):
+    file_path = f"{page_name}.html"
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return JSONResponse(status_code=404, content={"message": "Page not found"})
+
+# 3. फाइल अपलोड एपीआई
 @app.post("/api/upload")
 async def upload_file(
     file: UploadFile = File(...),
