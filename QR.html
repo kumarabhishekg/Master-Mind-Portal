@@ -106,67 +106,6 @@
 </div>
 
 <script>
-    function showFileDetails(input) {
-        const fileNameDiv = document.getElementById("selectedFileName");
-        if (input.files && input.files.length > 0) {
-            let totalSize = 0;
-            let names = Array.from(input.files).map(f => {
-                totalSize += f.size;
-                return f.name;
-            });
-            let sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
-            fileNameDiv.innerText = `✅ Selected (${input.files.length} file): ${names.join(", ")} [Total Size: ${sizeMB} MB]`;
-        } else {
-            fileNameDiv.innerText = "";
-        }
-    }
-
-    function handleUpload(event) {
-        event.preventDefault();
-        
-        let name = document.getElementById("custName").value.trim() || "Anonymous Customer";
-        let printType = document.querySelector('input[name="printType"]:checked').value;
-        let fileInput = document.getElementById("custFile");
-        
-        if (fileInput.files.length === 0) {
-            alert("Kripya kam se kam ek file select karein!");
-            return;
-        }
-
-        document.getElementById("submitBtn").disabled = true;
-        document.getElementById("progressWrapper").style.display = "block";
-
-        let progressBar = document.getElementById("progressBar");
-        let percentText = document.getElementById("percentText");
-        let statusText = document.getElementById("statusText");
-        let timeText = document.getElementById("timeText");
-        let sizeText = document.getElementById("sizeText");
-
-        let startTime = Date.now();
-        let totalBytes = Array.from(fileInput.files).reduce((acc, f) => acc + f.size, 0);
-        let totalSizeMB = (totalBytes / (1024 * 1024)).toFixed(2);
-
-        let progress = 0;
-        let interval = setInterval(() => {
-            progress += Math.floor(Math.random() * 8) + 3;
-            if (progress > 100) progress = 100;
-
-            let elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
-            let uploadedBytes = (totalBytes * (progress / 100)) / (1024 * 1024);
-
-            progressBar.style.width = progress + "%";
-            percentText.innerText = progress + "%";
-            timeText.innerText = `Time: ${elapsedTime}s`;
-            sizeText.innerText = `${uploadedBytes.toFixed(2)} MB / ${totalSizeMB} MB`;
-
-            if (progress === 100) {
-                clearInterval(interval);
-                statusText.innerText = "Saving files with Unique ID to Server...";
-                uploadFilesToServer(fileInput.files, name, printType);
-            }
-        }, 150);
-    }
-
     async function uploadFilesToServer(files, customerName, printType) {
         let fileMetaList = [];
 
@@ -180,7 +119,8 @@
             formData.append("description", `Print Type: ${printType}`);
 
             try {
-                let response = await fetch("http://127.0.0.1:8000/api/upload", {
+                // Sahi Tarika: Relative URL use karein taaki Render aur Localhost dono par chale
+                let response = await fetch("/api/upload", {
                     method: "POST",
                     body: formData
                 });
@@ -212,13 +152,14 @@
                 status: "Pending"
             };
 
+            // LocalStorage ke sath-sath ensure karein ki admin panel isko access kar sake
             let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
             existing.push(applicationData);
             localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
         }
 
         setTimeout(() => {
-            alert("✅ File Unique ID ke sath Python Server par save ho gayi aur Admin Instant Print mein bhej di gayi hai!");
+            alert("✅ File Unique ID ke sath Server par save ho gayi aur Admin Instant Print mein bhej di gayi hai!");
             let userSessionState = localStorage.getItem("userLoggedInSession"); 
             if (userSessionState === "logged_in") {
                 window.location.href = "H login.html";
