@@ -10,12 +10,10 @@ import uuid
 
 from database import engine, SessionLocal, Base, Application, User
 
-# Initialize database tables automatically
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Mastermind Portal Backend", version="2.1")
+app = FastAPI()
 
-# Enable CORS for seamless client-server communication
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,7 +25,6 @@ app.add_middleware(
 UPLOAD_DIR = "mastermind_storage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Mount storage directory for public file access
 app.mount("/storage", StaticFiles(directory=UPLOAD_DIR), name="storage")
 
 def get_db():
@@ -41,7 +38,7 @@ def get_db():
 def serve_home():
     return FileResponse("HOME.html")
 
-# --- 1. File Upload & Application API ---
+# --- 1. File Upload API ---
 @app.post("/api/upload")
 async def upload_file(
     request: Request,
@@ -70,8 +67,7 @@ async def upload_file(
             mobile=mobile,
             description=description,
             file_url=file_url,
-            unique_id=unique_id,
-            status="Pending"
+            unique_id=unique_id
         )
         db.add(new_application)
         db.commit()
@@ -88,6 +84,7 @@ async def upload_file(
         db.rollback()
         return {"status": "error", "message": str(e)}
 
+# --- 2. Admin Applications Fetch API ---
 @app.get("/api/applications")
 def get_all_applications(db: Session = Depends(get_db)):
     try:
@@ -96,42 +93,7 @@ def get_all_applications(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# --- 2. Admin ke liye saari applications fetch, complete aur delete karne ke APIs ---
-@app.get("/api/applications/all")
-def get_all_admin_applications(db: Session = Depends(get_db)):
-    try:
-        apps = db.query(Application).order_by(Application.id.desc()).all()
-        return {"status": "success", "data": apps}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@app.post("/api/applications/complete/{app_id}")
-def complete_application(app_id: int, db: Session = Depends(get_db)):
-    try:
-        app_item = db.query(Application).filter(Application.id == app_id).first()
-        if app_item:
-            app_item.status = "Completed"
-            db.commit()
-            return {"status": "success"}
-        return {"status": "error", "message": "Application not found"}
-    except Exception as e:
-        db.rollback()
-        return {"status": "error", "message": str(e)}
-
-@app.delete("/api/applications/{app_id}")
-def delete_application(app_id: int, db: Session = Depends(get_db)):
-    try:
-        app_item = db.query(Application).filter(Application.id == app_id).first()
-        if app_item:
-            db.delete(app_item)
-            db.commit()
-            return {"status": "success"}
-        return {"status": "error", "message": "Application not found"}
-    except Exception as e:
-        db.rollback()
-        return {"status": "error", "message": str(e)}
-
-# --- 3. User Registration & Signup Model & APIs ---
+# --- 3. User Registration / Signup Model & API ---
 class UserCreate(BaseModel):
     name: str
     mobile: str
@@ -160,6 +122,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         db.rollback()
         return {"status": "error", "message": str(e)}
 
+# --- 4. Admin ke liye Registered Users Fetch karne ka API ---
 @app.get("/api/users")
 def get_all_users(db: Session = Depends(get_db)):
     try:
@@ -168,33 +131,7 @@ def get_all_users(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/api/users/block/{user_id}")
-def toggle_block_user(user_id: int, db: Session = Depends(get_db)):
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            user.status = "Blocked" if user.status == "Active" else "Active"
-            db.commit()
-            return {"status": "success", "status_val": user.status}
-        return {"status": "error", "message": "User not found"}
-    except Exception as e:
-        db.rollback()
-        return {"status": "error", "message": str(e)}
-
-@app.delete("/api/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            db.delete(user)
-            db.commit()
-            return {"status": "success"}
-        return {"status": "error", "message": "User not found"}
-    except Exception as e:
-        db.rollback()
-        return {"status": "error", "message": str(e)}
-
-# --- 4. Static Files & HTML Page Serving Route ---
+# --- 5. Static Pages / Files Serve Route ---
 @app.get("/{file_path:path}")
 def serve_files_and_pages(file_path: str):
     if ".." in file_path:
