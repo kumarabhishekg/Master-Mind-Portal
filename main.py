@@ -3,16 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 import shutil
 import os
 import uuid
 
-from database import engine, SessionLocal, Base, Application
+from database import engine, SessionLocal, Base, Application, User
 
+# Initialize database tables automatically
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(title="Mastermind Portal Backend", version="2.0")
 
+# Enable CORS for seamless client-server communication
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,6 +27,7 @@ app.add_middleware(
 UPLOAD_DIR = "mastermind_storage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Mount storage directory for public file access
 app.mount("/storage", StaticFiles(directory=UPLOAD_DIR), name="storage")
 
 def get_db():
@@ -37,6 +41,7 @@ def get_db():
 def serve_home():
     return FileResponse("HOME.html")
 
+# --- 1. File Upload & Application API ---
 @app.post("/api/upload")
 async def upload_file(
     request: Request,
@@ -90,6 +95,70 @@ def get_all_applications(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# --- 2. User Registration & Signup Model & APIs ---
+class UserCreate(BaseModel):
+    name: str
+    mobile: str
+    email: str
+    password: str
+
+@app.post("/api/signup")
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    try:
+        existing_user = db.query(User).filter(User.mobile == user.mobile).first()
+        if existing_user:
+            return {"status": "error", "message": "Mobile number already registered!"}
+        
+        new_user = User(
+            name=user.name,
+            mobile=user.mobile,
+            email=user.email,
+            password=user.password,
+            status="Active"
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return {"status": "success", "message": "User registered successfully!"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/users")
+def get_all_users(db: Session = Depends(get_db)):
+    try:
+        users = db.query(User).order_by(User.id.desc()).all()
+        return {"status": "success", "data": users}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/users/block/{user_id}")
+def toggle_block_user(user_id: int, db: Session = Depends(get_db)):
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.status = "Blocked" if user.status == "Active" else "Active"
+            db.commit()
+            return {"status": "success", "status_val": user.status}
+        return {"status": "error", "message": "User not found"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            db.delete(user)
+            db.commit()
+            return {"status": "success"}
+        return {"status": "error", "message": "User not found"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+# --- 3. Static Files & HTML Page Serving Route ---
 @app.get("/{file_path:path}")
 def serve_files_and_pages(file_path: str):
     if ".." in file_path:
