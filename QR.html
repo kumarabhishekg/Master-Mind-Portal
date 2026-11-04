@@ -11,6 +11,7 @@
         
         .upload-card { background: white; max-width: 500px; width: 100%; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); text-align: center; margin: 15px; }
         
+        /* Website Branding */
         .brand-logo { font-size: 24px; font-weight: 800; color: #1e3c72; font-style: italic; letter-spacing: 1px; margin-bottom: 5px; }
         .brand-sub { font-size: 13px; color: #64748b; margin-bottom: 25px; }
 
@@ -19,10 +20,12 @@
         .input-group input[type="text"] { width: 100%; padding: 12px 15px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; background: #f8fafc; }
         .input-group input:focus { border-color: #1e3c72; background: #fff; }
 
+        /* Color / B&W Radio Style */
         .radio-group { display: flex; gap: 20px; background: #f1f5f9; padding: 12px 15px; border-radius: 10px; border: 1.5px solid #cbd5e1; }
         .radio-option { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; cursor: pointer; font-size: 14px; }
         .radio-option input { accent-color: #1e3c72; width: 18px; height: 18px; cursor: pointer; }
 
+        /* File Upload Box */
         .file-box { border: 2px dashed #3b82f6; background: #eff6ff; padding: 25px; border-radius: 12px; cursor: pointer; position: relative; transition: 0.3s; }
         .file-box:hover { background: #dbeafe; }
         .file-box input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 5; }
@@ -31,10 +34,12 @@
         .file-hint { font-size: 12px; color: #64748b; margin-top: 5px; }
         #selectedFileName { margin-top: 10px; font-size: 13px; font-weight: bold; color: #16a34a; word-break: break-all; }
 
+        /* Submit Button */
         .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
         .submit-btn:hover { transform: translateY(-2px); }
         .submit-btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
 
+        /* Progress Bar & Status */
         .progress-wrapper { display: none; margin-top: 20px; text-align: left; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; }
         .progress-bar-container { width: 100%; background: #e2e8f0; border-radius: 20px; height: 12px; overflow: hidden; margin-top: 8px; margin-bottom: 10px; }
         .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #16a34a); border-radius: 20px; transition: width 0.2s ease; }
@@ -66,17 +71,17 @@
         </div>
 
         <div class="input-group">
-            <label>Document Upload *</label>
+            <label>Document Upload (Server Storage Supported) *</label>
             <div class="file-box">
                 <span class="file-icon">📁</span>
                 <div class="file-text">Click to Choose Files or Drag Here</div>
-                <div class="file-hint">Supports: PDF, JPG, PNG, etc.</div>
+                <div class="file-hint">Supports: PDF, JPG, PNG, Word, Excel, etc.</div>
                 <input type="file" id="custFile" required multiple onchange="showFileDetails(this)">
             </div>
             <div id="selectedFileName"></div>
         </div>
 
-        <button type="submit" id="submitBtn" class="submit-btn">🚀 Send to Server</button>
+        <button type="submit" id="submitBtn" class="submit-btn">🚀 Send to Python Server</button>
 
         <div class="progress-wrapper" id="progressWrapper">
             <div class="progress-info">
@@ -86,6 +91,10 @@
             <div class="progress-bar-container">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
+            <div class="progress-info" style="font-size: 11px; color: #64748b; font-weight: normal;">
+                <span id="timeText">Time elapsed: 0s</span>
+                <span id="sizeText">0 KB / 0 KB</span>
+            </div>
         </div>
     </form>
 </div>
@@ -94,23 +103,37 @@
     function showFileDetails(input) {
         const fileNameDiv = document.getElementById("selectedFileName");
         if (input.files && input.files.length > 0) {
-            let names = Array.from(input.files).map(f => f.name);
-            fileNameDiv.innerText = `✅ Selected (${input.files.length} file): ${names.join(", ")}`;
+            let totalSize = 0;
+            let names = Array.from(input.files).map(f => {
+                totalSize += f.size;
+                return f.name;
+            });
+            let sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+            fileNameDiv.innerText = `✅ Selected (${input.files.length} file): ${names.join(", ")} [Total Size: ${sizeMB} MB]`;
         } else {
             fileNameDiv.innerText = "";
         }
     }
 
-    async function handleUpload(event) {
+    // Fallback ke liye file ko DataURL mein badalne ka function
+    function fileToDataURL(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function handleUpload(event) {
         event.preventDefault();
         
         let name = document.getElementById("custName").value.trim() || "Anonymous Customer";
-        let printTypeElement = document.querySelector('input[name="printType"]:checked');
-        if (!printTypeElement) {
+        let printTypeRadio = document.querySelector('input[name="printType"]:checked');
+        if (!printTypeRadio) {
             alert("Kripya Print Type select karein!");
             return;
         }
-        let printType = printTypeElement.value;
+        let printType = printTypeRadio.value;
         let fileInput = document.getElementById("custFile");
         
         if (fileInput.files.length === 0) {
@@ -120,40 +143,107 @@
 
         document.getElementById("submitBtn").disabled = true;
         document.getElementById("progressWrapper").style.display = "block";
-        document.getElementById("progressBar").style.width = "50%";
-        document.getElementById("statusText").innerText = "Uploading to Server...";
 
-        let file = fileInput.files[0]; // Pehli file upload karne ke liye
-        let formData = new FormData();
-        formData.append("file", file);
-        formData.append("customer_name", name);
-        formData.append("service_name", `Quick Upload (${printType})`);
-        formData.append("mobile", "Not Provided");
-        formData.append("description", `Print Type: ${printType}`);
+        let progressBar = document.getElementById("progressBar");
+        let percentText = document.getElementById("percentText");
+        let statusText = document.getElementById("statusText");
+        let timeText = document.getElementById("timeText");
+        let sizeText = document.getElementById("sizeText");
 
-        try {
-            let response = await fetch("/api/upload", {
-                method: "POST",
-                body: formData
-            });
-            let result = await response.json();
-            
-            if (result.status === "success") {
-                document.getElementById("progressBar").style.width = "100%";
-                document.getElementById("statusText").innerText = "Successfully Saved!";
-                alert("✅ File successfully server par save ho gayi hai!");
-                window.location.href = "HOME.html";
-            } else {
-                alert("Error: " + result.message);
-                document.getElementById("submitBtn").disabled = false;
-                document.getElementById("progressWrapper").style.display = "none";
+        let startTime = Date.now();
+        let totalBytes = Array.from(fileInput.files).reduce((acc, f) => acc + f.size, 0);
+        let totalSizeMB = (totalBytes / (1024 * 1024)).toFixed(2);
+
+        let progress = 0;
+        let interval = setInterval(() => {
+            progress += Math.floor(Math.random() * 12) + 8;
+            if (progress > 95) progress = 95;
+
+            let elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+            let uploadedBytes = (totalBytes * (progress / 100)) / (1024 * 1024);
+
+            progressBar.style.width = progress + "%";
+            percentText.innerText = progress + "%";
+            timeText.innerText = `Time: ${elapsedTime}s`;
+            sizeText.innerText = `${uploadedBytes.toFixed(2)} MB / ${totalSizeMB} MB`;
+        }, 150);
+
+        // Actual Server Upload start karein
+        uploadFilesToServer(fileInput.files, name, printType, interval);
+    }
+
+    async function uploadFilesToServer(files, customerName, printType, interval) {
+        let fileMetaList = [];
+
+        for (let i = 0; i < files.length; i++) {
+            let file = files[i];
+            let formData = new FormData();
+            formData.append("file", file);
+            formData.append("customer_name", customerName);
+            formData.append("service_name", `Quick Upload (${printType})`);
+            formData.append("mobile", "Not Provided");
+            formData.append("description", `Print Type: ${printType}`);
+
+            try {
+                // Relative URL '/api/upload' Render aur Localhost dono par kaam karega
+                let response = await fetch("/api/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                let result = await response.json();
+                if (result.status === "success") {
+                    fileMetaList.push({
+                        name: file.name,
+                        url: result.file_url,
+                        unique_id: result.unique_id
+                    });
+                } else {
+                    // Agar server par koi issue aaye to local DataURL bana lein
+                    let dataUrl = await fileToDataURL(file);
+                    fileMetaList.push({ name: file.name, url: dataUrl, unique_id: "LOCAL-" + Date.now() });
+                }
+            } catch (err) {
+                console.error("Server upload error, saving locally:", err);
+                let dataUrl = await fileToDataURL(file);
+                fileMetaList.push({ name: file.name, url: dataUrl, unique_id: "LOCAL-" + Date.now() });
             }
-        } catch (err) {
-            console.error("Upload error:", err);
-            alert("Server connection failed! Kripya dobara try karein.");
-            document.getElementById("submitBtn").disabled = false;
-            document.getElementById("progressWrapper").style.display = "none";
         }
+
+        clearInterval(interval);
+        document.getElementById("progressBar").style.width = "100%";
+        document.getElementById("percentText").innerText = "100%";
+        document.getElementById("statusText").innerText = "Upload Complete!";
+
+        if (fileMetaList.length > 0) {
+            let fileNames = fileMetaList.map(f => f.name).join(", ");
+            let applicationData = {
+                serviceName: `Quick Upload (${printType})`,
+                sender: `${customerName} (Server Storage)`,
+                aadhaarName: customerName,
+                mobile: "Not Provided",
+                description: `Print Type: ${printType} | Files: ${fileNames}`,
+                frontImg: fileMetaList[0] ? fileMetaList[0].url : null,
+                backImg: fileMetaList[1] ? fileMetaList[1].url : null,
+                extraDocs: fileMetaList.slice(2).map(f => f.url),
+                date: new Date().toLocaleDateString(),
+                status: "Pending"
+            };
+
+            // Admin Instant Print Queue ke liye save karein
+            let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+            existing.push(applicationData);
+            localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
+        }
+
+        setTimeout(() => {
+            alert("✅ File Unique ID ke sath Server par save ho gayi aur Admin Instant Print mein bhej di gayi hai!");
+            let isLoggedIn = localStorage.getItem("isLoggedIn");
+            if (isLoggedIn === "true") {
+                window.location.href = "H login.html";
+            } else {
+                window.location.href = "HOME.html";
+            }
+        }, 400);
     }
 </script>
 

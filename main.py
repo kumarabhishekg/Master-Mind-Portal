@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form, Depends
+from fastapi import FastAPI, UploadFile, File, Form, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -7,10 +7,10 @@ import shutil
 import os
 import uuid
 
-# database.py से इम्पोर्ट करें
+# database.py se import karein
 from database import engine, SessionLocal, Base, Application, init_db
 
-# टेबल पहले से मौजूद नहीं है तो क्रिएट करें
+# Table create karein agar pehle se nahi hai
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -26,10 +26,8 @@ app.add_middleware(
 UPLOAD_DIR = "mastermind_storage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# फाइलों और स्टोरेज के लिए mount
 app.mount("/storage", StaticFiles(directory=UPLOAD_DIR), name="storage")
 
-# Dependency डेटाबेस सेशन के लिए
 def get_db():
     db = SessionLocal()
     try:
@@ -37,17 +35,18 @@ def get_db():
     finally:
         db.close()
 
-# 1. मुख्य होमपेज लोड करने के लिए
+# 1. Homepage route
 @app.get("/")
 def serve_home():
     return FileResponse("HOME.html")
 
-# 2. फाइल अपलोड एपीआई
+# 2. File Upload API (Dynamic URL ke sath taaki Local aur Render dono par chale)
 @app.post("/api/upload")
 async def upload_file(
+    request: Request,
     file: UploadFile = File(...),
-    customer_name: str = Form(...),
-    service_name: str = Form(...),
+    customer_name: str = Form("Anonymous Customer"),
+    service_name: str = Form("Quick Upload"),
     mobile: str = Form("Not Provided"),
     description: str = Form(""),
     db: Session = Depends(get_db)
@@ -61,9 +60,10 @@ async def upload_file(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        file_url = f"https://master-mind-portal.onrender.com/storage/{unique_filename}"
+        # Automatic server URL (Render ya Localhost apne aap detect karega)
+        base_url = str(request.base_url).rstrip("/")
+        file_url = f"{base_url}/storage/{unique_filename}"
         
-        # डेटाबेस में सेव करें
         new_application = Application(
             customer_name=customer_name,
             service_name=service_name,
@@ -87,17 +87,24 @@ async def upload_file(
         db.rollback()
         return {"status": "error", "message": str(e)}
 
-# 3. स्मार्ट कैच-ऑल रूट: सभी images, folders (banking, GST, treveling) और .html pages को automatically serve करेगा
+# 3. Admin Panel ke liye saari uploaded files laane ka route
+@app.get("/api/applications")
+def get_all_applications(db: Session = Depends(get_db)):
+    try:
+        apps = db.query(Application).order_by(Application.id.desc()).all()
+        return {"status": "success", "data": apps}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# 4. Smart Catch-All Route (Sabhi HTML pages aur images ke liye)
 @app.get("/{file_path:path}")
 def serve_files_and_pages(file_path: str):
     if ".." in file_path:
         return JSONResponse(status_code=400, content={"message": "Invalid path"})
     
-    # Agar file direct maujood hai (jaise caste.png, banking/aeps.png, login.html)
     if os.path.exists(file_path) and os.path.isfile(file_path):
         return FileResponse(file_path)
         
-    # Agar .html lagana bhul gaye hon
     html_path = f"{file_path}.html"
     if os.path.exists(html_path) and os.path.isfile(html_path):
         return FileResponse(html_path)
