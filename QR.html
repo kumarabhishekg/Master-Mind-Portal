@@ -1,29 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mastermind Portal - Document Upload</title>
+    
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+        
+        .upload-card { background: white; max-width: 500px; width: 100%; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); text-align: center; margin: 15px; }
+        
+        .brand-logo { font-size: 24px; font-weight: 800; color: #1e3c72; font-style: italic; letter-spacing: 1px; margin-bottom: 5px; }
+        .brand-sub { font-size: 13px; color: #64748b; margin-bottom: 25px; }
+
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px; }
+        .input-group input[type="text"] { width: 100%; padding: 12px 15px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; background: #f8fafc; }
+        .input-group input:focus { border-color: #1e3c72; background: #fff; }
+
+        .radio-group { display: flex; gap: 20px; background: #f1f5f9; padding: 12px 15px; border-radius: 10px; border: 1.5px solid #cbd5e1; }
+        .radio-option { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; cursor: pointer; font-size: 14px; }
+        .radio-option input { accent-color: #1e3c72; width: 18px; height: 18px; cursor: pointer; }
+
+        .file-box { border: 2px dashed #3b82f6; background: #eff6ff; padding: 25px; border-radius: 12px; cursor: pointer; position: relative; transition: 0.3s; }
+        .file-box:hover { background: #dbeafe; }
+        .file-box input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 5; }
+        .file-icon { font-size: 32px; margin-bottom: 8px; display: block; }
+        .file-text { font-weight: bold; color: #1e3c72; font-size: 15px; }
+        .file-hint { font-size: 12px; color: #64748b; margin-top: 5px; }
+        #selectedFileName { margin-top: 10px; font-size: 13px; font-weight: bold; color: #16a34a; word-break: break-all; }
+
+        .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
+        .submit-btn:hover { transform: translateY(-2px); }
+        .submit-btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+    </style>
+</head>
+<body>
+
+<div class="upload-card">
+    <div class="brand-logo">MASTERMIND PORTAL</div>
+    <div class="brand-sub">Digital Services & Quick Document Hub</div>
+
+    <form id="customerUploadForm" onsubmit="handleUpload(event)">
+        <div class="input-group">
+            <label>Aapka Naam (Optional)</label>
+            <input type="text" id="custName" placeholder="Apna naam likhein (ya khali chhod dein)">
+        </div>
+
+        <div class="input-group">
+            <label>Print Type (Kisme print chahiye?) *</label>
+            <div class="radio-group">
+                <label class="radio-option">
+                    <input type="radio" name="printType" value="Color" required> 🎨 Color
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="printType" value="Black & White" required> ⬛ Black & White
+                </label>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Document Upload *</label>
+            <div class="file-box">
+                <span class="file-icon">📁</span>
+                <div class="file-text">Click to Choose Files or Drag Here</div>
+                <div class="file-hint">Supports: PDF, JPG, PNG, etc.</div>
+                <input type="file" id="custFile" required multiple onchange="showFileDetails(this)">
+            </div>
+            <div id="selectedFileName"></div>
+        </div>
+
+        <button type="submit" id="submitBtn" class="submit-btn">🚀 Send Document</button>
+    </form>
+</div>
+
 <script>
     function showFileDetails(input) {
         const fileNameDiv = document.getElementById("selectedFileName");
         if (input.files && input.files.length > 0) {
-            let totalSize = 0;
-            let names = Array.from(input.files).map(f => {
-                totalSize += f.size;
-                return f.name;
-            });
-            let sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
-            fileNameDiv.innerText = `✅ Selected (${input.files.length} file): ${names.join(", ")} [Total Size: ${sizeMB} MB]`;
+            let names = Array.from(input.files).map(f => f.name);
+            fileNameDiv.innerText = `✅ Selected (${input.files.length} files): ${names.join(", ")}`;
         } else {
             fileNameDiv.innerText = "";
         }
     }
 
+    function fileToDataURL(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+    }
+
     async function handleUpload(event) {
         event.preventDefault();
         
-        let name = document.getElementById("custName").value.trim() || "Anonymous Customer";
+        let name = document.getElementById("custName").value.trim() || "Customer";
         let printTypeRadio = document.querySelector('input[name="printType"]:checked');
-        if (!printTypeRadio) {
-            alert("Kripya Print Type select karein!");
-            return;
-        }
-        let printType = printTypeRadio.value;
+        let printType = printTypeRadio ? printTypeRadio.value : "Color";
         let fileInput = document.getElementById("custFile");
         
         if (fileInput.files.length === 0) {
@@ -32,55 +108,22 @@
         }
 
         document.getElementById("submitBtn").disabled = true;
-        document.getElementById("progressWrapper").style.display = "block";
-
-        let progressBar = document.getElementById("progressBar");
-        let percentText = document.getElementById("percentText");
-        let statusText = document.getElementById("statusText");
-
-        progressBar.style.width = "20%";
-        percentText.innerText = "20%";
-        statusText.innerText = "Uploading files to server...";
+        document.getElementById("submitBtn").innerText = "Processing...";
 
         let fileMetaList = [];
 
-        // Ek-ek karke saari select ki gayi files ko server par bhejenge
-        for (let i = 0; i < fileInput.files.length; i++) {
-            let file = fileInput.files[i];
-            let formData = new FormData();
-            formData.append("file", file);
-            formData.append("customer_name", name);
-            formData.append("service_name", `Quick Upload (${printType})`);
-            formData.append("mobile", "Not Provided");
-            formData.append("description", `Print Type: ${printType}`);
+        try {
+            for (let i = 0; i < fileInput.files.length; i++) {
+                let file = fileInput.files[i];
+                let base64Url = await fileToDataURL(file);
 
-            try {
-                let response = await fetch("/api/upload", {
-                    method: "POST",
-                    body: formData
+                fileMetaList.push({
+                    name: file.name,
+                    url: base64Url,
+                    unique_id: "DOC-" + Date.now() + "-" + i
                 });
-                let result = await response.json();
-                if (result.status === "success") {
-                    fileMetaList.push({
-                        name: file.name,
-                        url: result.file_url,
-                        unique_id: result.unique_id
-                    });
-                }
-            } catch (err) {
-                console.error("Upload failed for file:", file.name, err);
             }
 
-            let progressPercent = Math.floor(((i + 1) / fileInput.files.length) * 80) + 20;
-            progressBar.style.width = progressPercent + "%";
-            percentText.innerText = progressPercent + "%";
-        }
-
-        progressBar.style.width = "100%";
-        percentText.innerText = "100%";
-        statusText.innerText = "Upload Complete!";
-
-        if (fileMetaList.length > 0) {
             let fileNames = fileMetaList.map(f => f.name).join(", ");
             let applicationData = {
                 serviceName: `Quick Upload (${printType})`,
@@ -95,23 +138,21 @@
                 status: "Pending"
             };
 
-            try {
-                let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-                existing.push(applicationData);
-                localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
-            } catch (e) {
-                console.error("Local storage error:", e);
-            }
-        }
+            let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+            existing.push(applicationData);
+            localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
 
-        setTimeout(() => {
-            alert("✅ Saari files successfully upload ho gayi hain aur admin queue mein bhej di gayi hain!");
-            let isLoggedIn = localStorage.getItem("isLoggedIn");
-            if (isLoggedIn === "true") {
-                window.location.href = "H login.html";
-            } else {
-                window.location.href = "HOME.html";
-            }
-        }, 500);
+            alert("✅ Saari files successfully Print Studio mein bhej di gayi hain!");
+            window.location.href = "HOME.html";
+
+        } catch (e) {
+            console.error("Upload error:", e);
+            alert("Upload karne mein kuch samasya aayi. Kripya choti files try karein.");
+            document.getElementById("submitBtn").disabled = false;
+            document.getElementById("submitBtn").innerText = "🚀 Send Document";
+        }
     }
 </script>
+
+</body>
+</html>
