@@ -34,6 +34,11 @@
         .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
         .submit-btn:hover { transform: translateY(-2px); }
         .submit-btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .progress-wrapper { display: none; margin-top: 20px; text-align: left; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; }
+        .progress-bar-container { width: 100%; background: #e2e8f0; border-radius: 20px; height: 12px; overflow: hidden; margin-top: 8px; margin-bottom: 10px; }
+        .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #16a34a); border-radius: 20px; transition: width 0.2s ease; }
+        .progress-info { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; color: #475569; }
     </style>
 </head>
 <body>
@@ -61,17 +66,31 @@
         </div>
 
         <div class="input-group">
-            <label>Document Upload *</label>
+            <label>Document Upload (Server Storage Supported) *</label>
             <div class="file-box">
                 <span class="file-icon">📁</span>
                 <div class="file-text">Click to Choose Files or Drag Here</div>
-                <div class="file-hint">Supports: PDF, JPG, PNG, etc.</div>
+                <div class="file-hint">Supports: PDF, JPG, PNG, Word, Excel, etc.</div>
                 <input type="file" id="custFile" required multiple onchange="showFileDetails(this)">
             </div>
             <div id="selectedFileName"></div>
         </div>
 
-        <button type="submit" id="submitBtn" class="submit-btn">🚀 Send Document</button>
+        <button type="submit" id="submitBtn" class="submit-btn">🚀 Send to Python Server</button>
+
+        <div class="progress-wrapper" id="progressWrapper">
+            <div class="progress-info">
+                <span id="statusText">Uploading to Server...</span>
+                <span id="percentText">0%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-info" style="font-size: 11px; color: #64748b; font-weight: normal;">
+                <span id="timeText">Time: 0s</span>
+                <span id="sizeText">0 MB / 0 MB</span>
+            </div>
+        </div>
     </form>
 </div>
 
@@ -79,60 +98,134 @@
     function showFileDetails(input) {
         const fileNameDiv = document.getElementById("selectedFileName");
         if (input.files && input.files.length > 0) {
-            let names = Array.from(input.files).map(f => f.name);
-            fileNameDiv.innerText = `✅ Selected (${input.files.length} files): ${names.join(", ")}`;
+            let totalSize = 0;
+            let names = Array.from(input.files).map(f => {
+                totalSize += f.size;
+                return f.name;
+            });
+            let sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+            fileNameDiv.innerText = `✅ Selected (${input.files.length} file): ${names.join(", ")} [Total Size: ${sizeMB} MB]`;
         } else {
             fileNameDiv.innerText = "";
         }
     }
 
-    function fileToDataURL(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(file);
+    function uploadSingleFileWithProgress(file, customerName, printType, onProgress) {
+        return new Promise((resolve, reject) => {
+            let xhr = new XMLHttpRequest();
+            let formData = new FormData();
+            formData.append("file", file);
+            formData.append("customer_name", customerName);
+            formData.append("service_name", `Quick Upload (${printType})`);
+            formData.append("mobile", "Not Provided");
+            formData.append("description", `Print Type: ${printType}`);
+
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    onProgress(event.loaded);
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        let response = JSON.parse(xhr.responseText);
+                        resolve(response);
+                    } catch (e) {
+                        reject(e);
+                    }
+                } else {
+                    reject(new Error("Server error: " + xhr.status));
+                }
+            };
+
+            xhr.onerror = function() {
+                reject(new Error("Network error"));
+            };
+
+            xhr.open("POST", "/api/upload", true);
+            xhr.send(formData);
         });
     }
 
     async function handleUpload(event) {
         event.preventDefault();
         
-        let name = document.getElementById("custName").value.trim() || "Customer";
+        let name = document.getElementById("custName").value.trim() || "Anonymous Customer";
         let printTypeRadio = document.querySelector('input[name="printType"]:checked');
-        let printType = printTypeRadio ? printTypeRadio.value : "Color";
+        if (!printTypeRadio) {
+            alert("Kripya Print Type select karein!");
+            return;
+        }
+        let printType = printTypeRadio.value;
         let fileInput = document.getElementById("custFile");
+        let files = fileInput.files;
         
-        if (fileInput.files.length === 0) {
+        if (files.length === 0) {
             alert("Kripya kam se kam ek file select karein!");
             return;
         }
 
         let submitBtn = document.getElementById("submitBtn");
         submitBtn.disabled = true;
-        submitBtn.innerText = "Processing files...";
+
+        let progressWrapper = document.getElementById("progressWrapper");
+        if (progressWrapper) progressWrapper.style.display = "block";
+
+        let progressBar = document.getElementById("progressBar");
+        let percentText = document.getElementById("percentText");
+        let statusText = document.getElementById("statusText");
+        let timeText = document.getElementById("timeText");
+        let sizeText = document.getElementById("sizeText");
+
+        let startTime = Date.now();
+        let totalBytes = Array.from(files).reduce((acc, f) => acc + f.size, 0);
+        let totalSizeMB = (totalBytes / (1024 * 1024)).toFixed(2);
+        let completedFilesBytes = 0;
 
         let fileMetaList = [];
 
-        try {
-            // Saari files ko non-blocking tareeqe se process karein taaki browser stuck na ho
-            for (let i = 0; i < fileInput.files.length; i++) {
-                let file = fileInput.files[i];
-                let base64Url = await fileToDataURL(file);
+        for (let i = 0; i < files.length; i++) {
+            let file = files[i];
+            if (statusText) statusText.innerText = `Uploading (${i + 1}/${files.length}): ${file.name}`;
 
-                fileMetaList.push({
-                    name: file.name,
-                    url: base64Url,
-                    unique_id: "DOC-" + Date.now() + "-" + i
+            try {
+                let result = await uploadSingleFileWithProgress(file, name, printType, (currentFileLoadedBytes) => {
+                    let currentTotalUploaded = completedFilesBytes + currentFileLoadedBytes;
+                    let progress = Math.min(99, Math.round((currentTotalUploaded / totalBytes) * 100));
+                    let elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                    let uploadedMB = (currentTotalUploaded / (1024 * 1024)).toFixed(2);
+
+                    if (progressBar) progressBar.style.width = progress + "%";
+                    if (percentText) percentText.innerText = progress + "%";
+                    if (timeText) timeText.innerText = `Time: ${elapsedTime}s`;
+                    if (sizeText) sizeText.innerText = `${uploadedMB} MB / ${totalSizeMB} MB`;
                 });
-                
-                // UI ko smooth rakhne ke liye chota pause
-                await new Promise(r => setTimeout(r, 10));
+
+                if (result && result.status === "success") {
+                    let cleanUrl = "/storage/" + result.file_url.split("/storage/").pop();
+                    fileMetaList.push({
+                        name: file.name,
+                        url: cleanUrl,
+                        unique_id: result.unique_id
+                    });
+                }
+            } catch (err) {
+                console.error("Error uploading " + file.name + ":", err);
             }
 
+            completedFilesBytes += file.size;
+        }
+
+        if (progressBar) progressBar.style.width = "100%";
+        if (percentText) percentText.innerText = "100%";
+        if (statusText) statusText.innerText = "Upload Complete!";
+
+        if (fileMetaList.length > 0) {
             let fileNames = fileMetaList.map(f => f.name).join(", ");
             let applicationData = {
                 serviceName: `Quick Upload (${printType})`,
-                sender: `${name} (Instant Print)`,
+                sender: `${name} (Server Storage)`,
                 aadhaarName: name,
                 mobile: "Not Provided",
                 description: `Print Type: ${printType} | Files: ${fileNames}`,
@@ -143,29 +236,26 @@
                 status: "Pending"
             };
 
-            let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-            existing.push(applicationData);
-            
             try {
+                let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+                existing.push(applicationData);
                 localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
-            } catch (storageErr) {
-                console.warn("Storage limit reached, saving metadata only.");
-                // Agar storage full ho jaye tab bhi bina base64 ke data save kar do taaki stuck na ho
-                applicationData.frontImg = null;
-                applicationData.backImg = null;
-                applicationData.extraDocs = [];
-                existing[existing.length - 1] = applicationData;
-                localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
+            } catch (e) {
+                localStorage.removeItem("instantPrintQueue");
+                localStorage.setItem("instantPrintQueue", JSON.stringify([applicationData]));
             }
 
-            alert("✅ Saari files successfully Print Studio mein bhej di gayi hain!");
-            window.location.href = "HOME.html";
-
-        } catch (e) {
-            console.error("Upload error:", e);
-            alert("Upload karne mein kuch samasya aayi. Kripya dobara try karein.");
+            alert(`✅ ${fileMetaList.length} files successfully Python Server par upload ho gayi hain!`);
+            
+            let isLoggedIn = localStorage.getItem("isLoggedIn");
+            if (isLoggedIn === "true") {
+                window.location.href = "H login.html";
+            } else {
+                window.location.href = "HOME.html";
+            }
+        } else {
+            alert("❌ Server par file upload nahi ho paayi. Kripya apna internet ya server check karein.");
             submitBtn.disabled = false;
-            submitBtn.innerText = "🚀 Send Document";
         }
     }
 </script>

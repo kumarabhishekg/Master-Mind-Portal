@@ -7,7 +7,7 @@ import shutil
 import os
 import uuid
 
-from database import engine, SessionLocal, Base, Application, init_db
+from database import engine, SessionLocal, Base, Application
 
 Base.metadata.create_all(bind=engine)
 
