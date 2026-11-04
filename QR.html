@@ -100,83 +100,15 @@
 </div>
 
 <script>
-    function showFileDetails(input) {
-        const fileNameDiv = document.getElementById("selectedFileName");
-        if (input.files && input.files.length > 0) {
-            let totalSize = 0;
-            let names = Array.from(input.files).map(f => {
-                totalSize += f.size;
-                return f.name;
-            });
-            let sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
-            fileNameDiv.innerText = `✅ Selected (${input.files.length} file): ${names.join(", ")} [Total Size: ${sizeMB} MB]`;
-        } else {
-            fileNameDiv.innerText = "";
-        }
-    }
-
-    // Fallback ke liye file ko DataURL mein badalne ka function
-    function fileToDataURL(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    function handleUpload(event) {
-        event.preventDefault();
-        
-        let name = document.getElementById("custName").value.trim() || "Anonymous Customer";
-        let printTypeRadio = document.querySelector('input[name="printType"]:checked');
-        if (!printTypeRadio) {
-            alert("Kripya Print Type select karein!");
-            return;
-        }
-        let printType = printTypeRadio.value;
-        let fileInput = document.getElementById("custFile");
-        
-        if (fileInput.files.length === 0) {
-            alert("Kripya kam se kam ek file select karein!");
-            return;
-        }
-
-        document.getElementById("submitBtn").disabled = true;
-        document.getElementById("progressWrapper").style.display = "block";
-
-        let progressBar = document.getElementById("progressBar");
-        let percentText = document.getElementById("percentText");
-        let statusText = document.getElementById("statusText");
-        let timeText = document.getElementById("timeText");
-        let sizeText = document.getElementById("sizeText");
-
-        let startTime = Date.now();
-        let totalBytes = Array.from(fileInput.files).reduce((acc, f) => acc + f.size, 0);
-        let totalSizeMB = (totalBytes / (1024 * 1024)).toFixed(2);
-
-        let progress = 0;
-        let interval = setInterval(() => {
-            progress += Math.floor(Math.random() * 12) + 8;
-            if (progress > 95) progress = 95;
-
-            let elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
-            let uploadedBytes = (totalBytes * (progress / 100)) / (1024 * 1024);
-
-            progressBar.style.width = progress + "%";
-            percentText.innerText = progress + "%";
-            timeText.innerText = `Time: ${elapsedTime}s`;
-            sizeText.innerText = `${uploadedBytes.toFixed(2)} MB / ${totalSizeMB} MB`;
-        }, 150);
-
-        // Actual Server Upload start karein
-        uploadFilesToServer(fileInput.files, name, printType, interval);
-    }
-
-    async function uploadFilesToServer(files, customerName, printType, interval) {
+async function uploadFilesToServer(files, customerName, printType, interval) {
         let fileMetaList = [];
 
         for (let i = 0; i < files.length; i++) {
             let file = files[i];
+            
+            // 1. Pehle file ka direct Base64 data banayein (Taaki QR C.html mein kabhi Not Found na aaye)
+            let directDataUrl = await fileToDataURL(file);
+
             let formData = new FormData();
             formData.append("file", file);
             formData.append("customer_name", customerName);
@@ -185,28 +117,20 @@
             formData.append("description", `Print Type: ${printType}`);
 
             try {
-                // Relative URL '/api/upload' Render aur Localhost dono par kaam karega
-                let response = await fetch("/api/upload", {
+                await fetch("/api/upload", {
                     method: "POST",
                     body: formData
                 });
-                let result = await response.json();
-                if (result.status === "success") {
-                    fileMetaList.push({
-                        name: file.name,
-                        url: result.file_url,
-                        unique_id: result.unique_id
-                    });
-                } else {
-                    // Agar server par koi issue aaye to local DataURL bana lein
-                    let dataUrl = await fileToDataURL(file);
-                    fileMetaList.push({ name: file.name, url: dataUrl, unique_id: "LOCAL-" + Date.now() });
-                }
             } catch (err) {
-                console.error("Server upload error, saving locally:", err);
-                let dataUrl = await fileToDataURL(file);
-                fileMetaList.push({ name: file.name, url: dataUrl, unique_id: "LOCAL-" + Date.now() });
+                console.error("Server backup log:", err);
             }
+
+            // Print Studio ke liye directDataUrl save karein
+            fileMetaList.push({
+                name: file.name,
+                url: directDataUrl,
+                unique_id: "DOC-" + Date.now() + "-" + i
+            });
         }
 
         clearInterval(interval);
@@ -218,7 +142,7 @@
             let fileNames = fileMetaList.map(f => f.name).join(", ");
             let applicationData = {
                 serviceName: `Quick Upload (${printType})`,
-                sender: `${customerName} (Server Storage)`,
+                sender: `${customerName} (Instant Print)`,
                 aadhaarName: customerName,
                 mobile: "Not Provided",
                 description: `Print Type: ${printType} | Files: ${fileNames}`,
@@ -229,14 +153,13 @@
                 status: "Pending"
             };
 
-            // Admin Instant Print Queue ke liye save karein
             let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
             existing.push(applicationData);
             localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
         }
 
         setTimeout(() => {
-            alert("✅ File Unique ID ke sath Server par save ho gayi aur Admin Instant Print mein bhej di gayi hai!");
+            alert("✅ Document successfully Instant Print Studio mein bhej diya gaya hai!");
             let isLoggedIn = localStorage.getItem("isLoggedIn");
             if (isLoggedIn === "true") {
                 window.location.href = "H login.html";
