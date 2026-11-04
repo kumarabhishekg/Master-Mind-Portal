@@ -7,10 +7,8 @@ import shutil
 import os
 import uuid
 
-# database.py se import karein
 from database import engine, SessionLocal, Base, Application, init_db
 
-# Table create karein agar pehle se nahi hai
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -35,12 +33,10 @@ def get_db():
     finally:
         db.close()
 
-# 1. Homepage route
 @app.get("/")
 def serve_home():
     return FileResponse("HOME.html")
 
-# 2. File Upload API (Dynamic URL ke sath taaki Local aur Render dono par chale)
 @app.post("/api/upload")
 async def upload_file(
     request: Request,
@@ -60,7 +56,6 @@ async def upload_file(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Automatic server URL (Render ya Localhost apne aap detect karega)
         base_url = str(request.base_url).rstrip("/")
         file_url = f"{base_url}/storage/{unique_filename}"
         
@@ -87,7 +82,6 @@ async def upload_file(
         db.rollback()
         return {"status": "error", "message": str(e)}
 
-# 3. Admin Panel ke liye saari uploaded files laane ka route
 @app.get("/api/applications")
 def get_all_applications(db: Session = Depends(get_db)):
     try:
@@ -96,7 +90,6 @@ def get_all_applications(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# 4. Smart Catch-All Route (Sabhi HTML pages aur images ke liye)
 @app.get("/{file_path:path}")
 def serve_files_and_pages(file_path: str):
     if ".." in file_path:
