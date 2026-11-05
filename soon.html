@@ -197,9 +197,7 @@
         };
 
         try {
-            let existingApplications = JSON.parse(localStorage.getItem("gstApplications")) || [];
-            existingApplications.push(applicationData);
-            localStorage.setItem("gstApplications", JSON.stringify(existingApplications));
+            // Application record is persisted by the authenticated upload API.
             alert("✅ Dhanyawad! Aapki request note kar li gayi hai. Hum jald hi aapse sampark karenge.");
             document.getElementById("serviceNeeded").value = "";
         } catch (err) {
