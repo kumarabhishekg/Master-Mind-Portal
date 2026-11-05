@@ -164,7 +164,7 @@ async def issue_document(mobile: str = Form(...), title: str = Form(...), file: 
                 if size > MAX_UPLOAD_BYTES: raise HTTPException(413, "File exceeds 10 MB limit")
                 out.write(chunk)
         with target.open("rb") as check: signature = check.read(8)
-        valid = (suffix == ".pdf" and signature.startswith(b"%PDF-")) or (suffix in {".jpg",".jpeg"} and signature.startswith(b"\\xff\\xd8\\xff")) or (suffix == ".png" and signature.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+        valid = (suffix == ".pdf" and signature.startswith(b"%PDF-")) or (suffix in {".jpg",".jpeg"} and signature.startswith(bytes([255,216,255]))) or (suffix == ".png" and signature.startswith(bytes([137,80,78,71,13,10,26,10])))
         if not valid: raise HTTPException(415, "File content does not match its extension")
         doc = IssuedDocument(target_mobile=mobile, title=title[:120], file_name=Path(file.filename).name[:180],
                              file_url=f"/api/files/{unique_id}", created_at=time.strftime("%Y-%m-%d"))
@@ -284,7 +284,7 @@ def delete_print_queue(queue_id: int, _: User = Depends(admin_user), db: Session
     if not item: raise HTTPException(404, "Print request not found")
     db.delete(item); db.commit()
     return {"status":"success"}
-\n@app.post("/api/upload")
+@app.post("/api/upload")
 async def upload_file(request: Request, file: UploadFile = File(...),
     customer_name: str = Form(""), service_name: str = Form(""), mobile: str = Form(""),
     description: str = Form(""), user: User = Depends(current_user), db: Session = Depends(get_db)):
@@ -302,7 +302,7 @@ async def upload_file(request: Request, file: UploadFile = File(...),
                 out.write(chunk)
         with target.open("rb") as check:
             signature = check.read(8)
-        valid = (suffix == ".pdf" and signature.startswith(b"%PDF-")) or (suffix in {".jpg",".jpeg"} and signature.startswith(b"\xff\xd8\xff")) or (suffix == ".png" and signature.startswith(b"\x89PNG\r\n\x1a\n"))
+        valid = (suffix == ".pdf" and signature.startswith(b"%PDF-")) or (suffix in {".jpg",".jpeg"} and signature.startswith(bytes([255,216,255]))) or (suffix == ".png" and signature.startswith(bytes([137,80,78,71,13,10,26,10])))
         if not valid: raise HTTPException(415, "File content does not match its extension")
         record = Application(customer_name=(customer_name or user.name)[:100],
             service_name=(service_name or "Upload")[:100], mobile=user.mobile,
