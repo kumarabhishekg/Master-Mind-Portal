@@ -39,3 +39,12 @@ def init_db():
                 conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR NOT NULL DEFAULT 'user'"))
 
 init_db()
+
+class IssuedDocument(Base):
+    __tablename__ = "issued_documents"
+    id = Column(Integer, primary_key=True, index=True)
+    target_mobile = Column(String, index=True, nullable=False)
+    title = Column(String, nullable=False)
+    file_name = Column(String, nullable=False)
+    file_url = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
