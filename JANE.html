@@ -258,7 +258,25 @@
                 status: "Pending"
             };
 
-            // Application is already stored by the authenticated /api/upload endpoint.
+                        const savedResponse = await fetch("/api/service-requests", {
+                method:"POST", credentials:"same-origin",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({
+                    service_name: applicationData.serviceName,
+                    customer_name: applicationData.aadhaarName || "Customer",
+                    description: applicationData.description || "",
+                    form_data: {
+                        applicantName: applicationData.aadhaarName || "",
+                        description: applicationData.description || "",
+                        altMobile: applicationData.altMobile || "",
+                        serviceType: applicationData.serviceName || "",
+                        proofType: applicationData.proofType || ""
+                    },
+                    file_urls: [applicationData.frontImg, applicationData.backImg].concat(applicationData.extraDocs || []).filter(Boolean)
+                })
+            });
+            const savedResult = await savedResponse.json();
+            if (!savedResponse.ok) throw new Error(savedResult.detail || "Application database save failed");
 
             alert("Application Successfully Submitted (Fee: ₹70)!");
             window.location.href = "H login.html";
