@@ -257,8 +257,9 @@ async function deleteSingleItem(id) {
 function showDetails(id) {
     const item = state.applications.find(x => x.id === id); if (!item) return;
     state.selectedApplication = item;
-    const files = item.file_url ? '<div class="doc-block"><p class="doc-heading-title">Uploaded file</p><a class="link-view" target="_blank" rel="noopener" href="'+esc(item.file_url)+'">Open file</a> <a class="link-dl" href="'+esc(item.file_url)+'" download>Download</a></div>' : '<p>No uploaded file.</p>';
-    $("modalBodyText").innerHTML = '<p><strong>Service:</strong> '+esc(item.service_name)+'</p><p><strong>Name:</strong> '+esc(item.customer_name)+'</p><p><strong>Mobile:</strong> '+esc(item.mobile)+'</p><p><strong>Description:</strong> '+esc(item.description)+'</p><hr>'+files;
+    const files = (item.files || []).map((file, index) => '<div class="doc-block"><p class="doc-heading-title">File '+(index+1)+': '+esc(file.name)+'</p><a class="link-view" target="_blank" rel="noopener" href="'+esc(file.url)+'">Open file</a> <a class="link-dl" href="'+esc(file.url)+'" download>Download</a></div>').join("") || '<p>No uploaded file.</p>';
+    const formDetails = Object.entries(item.form_data || {}).map(([key,value]) => '<p><strong>'+esc(key)+':</strong> '+esc(value)+'</p>').join("");
+    $("modalBodyText").innerHTML = '<p><strong>Service:</strong> '+esc(item.service_name)+'</p><p><strong>Name:</strong> '+esc(item.customer_name)+'</p><p><strong>Mobile:</strong> '+esc(item.mobile)+'</p><p><strong>Description:</strong> '+esc(item.description)+'</p>'+formDetails+'<hr>'+files;
     $("targetUserBox").innerHTML = '<p>Recipient: '+esc(item.mobile)+'</p>';
     $("detailsModal").style.display = "flex";
 }
