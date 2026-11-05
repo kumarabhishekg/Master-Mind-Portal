@@ -322,61 +322,49 @@
 <script>
     let loggedInMobile = "";
 
-    window.onload = function() {
-        const isLoggedin = localStorage.getItem("isLoggedIn");
-        loggedInMobile = localStorage.getItem("loggedInUserMobile");
+    window.onload = async function() {
         const authLink = document.getElementById("authLink");
-
-        if (isLoggedin === "true" && loggedInMobile) {
+        try {
+            const response = await fetch("/api/auth/me", {credentials:"same-origin"});
+            if (!response.ok) throw new Error("Login required");
+            const result = await response.json();
+            loggedInMobile = result.user.mobile;
             document.getElementById("userMobileDisplay").innerText = `(${loggedInMobile})`;
             authLink.innerText = "LOGOUT";
             authLink.href = "#";
-            
-            authLink.onclick = function(e) {
+            authLink.onclick = async function(e) {
                 e.preventDefault();
-                localStorage.removeItem("isLoggedIn");
-                localStorage.removeItem("loggedInUserMobile");
-                localStorage.removeItem("loggedInUserName");
-                alert("Logged out successfully!");
-                window.location.href = "HOME.html";
+                await fetch("/api/auth/logout", {method:"POST",credentials:"same-origin"});
+                window.location.href = "login.html";
             };
-        } else {
+            loadIssuedDocuments();
+        } catch (error) {
             window.location.href = "login.html";
         }
-
-        loadIssuedDocuments();
     };
 
-    function loadIssuedDocuments() {
-        let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
-        let container = document.getElementById("issuedDocsList");
-
-        // Sirf wahi documents filter karein jo ishi logged-in user ke mobile ke liye bheje gaye hain
-        let myDocs = issuedList.filter(doc => doc.targetMobile === loggedInMobile);
-
-        if(myDocs.length === 0) {
-            container.innerHTML = `<p style="color: #777; text-align: center; padding: 15px;">Abhi tak aapke liye koi document nahi bheja gaya hai.</p>`;
-            return;
-        }
-
-        container.innerHTML = myDocs.map((doc) => {
-            // Original index nikalna taaki delete karte waqt main array se sahi item remove ho
-            let realIndex = issuedList.findIndex(item => item === doc);
-
-            return `
+    async function loadIssuedDocuments() {
+        const container = document.getElementById("issuedDocsList");
+        try {
+            const response = await fetch("/api/documents", {credentials:"same-origin"});
+            if (!response.ok) throw new Error("Unable to load documents");
+            const result = await response.json();
+            const docs = result.data || [];
+            if (!docs.length) {
+                container.innerHTML = `<p style="color:#777;text-align:center;padding:15px;">Abhi tak aapke liye koi document nahi bheja gaya hai.</p>`;
+                return;
+            }
+            container.innerHTML = docs.map(doc => `
                 <div class="doc-card">
-                    <div>
-                        <strong>${doc.title}</strong><br>
-                        <small style="color: #555;">File: ${doc.fileName} | Issued on: ${doc.date}</small>
-                    </div>
-                    <div style="display: flex; gap: 5px;">
-                        <button onclick='viewDocument(${JSON.stringify(doc)})' class="btn-action btn-view">View</button>
+                    <div><strong>${doc.title}</strong><br><small>File: ${doc.fileName} | Issued on: ${doc.date}</small></div>
+                    <div style="display:flex;gap:5px;">
+                        <a href="${doc.fileUrl}" target="_blank" class="btn-action btn-view">View</a>
                         <a href="${doc.fileUrl}" download="${doc.fileName}" class="btn-action btn-download">Download</a>
-                        <button onclick="deleteIssuedDoc(${realIndex})" class="btn-action btn-delete">Delete</button>
                     </div>
-                </div>
-            `;
-        }).join('');
+                </div>`).join("");
+        } catch (error) {
+            container.innerHTML = `<p>Documents load nahi ho paaye. Dobara login karein.</p>`;
+        }
     }
 
     function viewDocument(doc) {
