@@ -117,7 +117,7 @@
             formData.append("file", file);
             formData.append("customer_name", customerName);
             formData.append("service_name", `Quick Upload (${printType})`);
-            formData.append("mobile", "Not Provided");
+            
             formData.append("description", `Print Type: ${printType}`);
 
             xhr.upload.onprogress = function(event) {
@@ -203,11 +203,12 @@
                 });
 
                 if (result && result.status === "success") {
-                    let cleanUrl = "/storage/" + result.file_url.split("/storage/").pop();
+                    let cleanUrl = result.file_url;
                     fileMetaList.push({
                         name: file.name,
                         url: cleanUrl,
-                        unique_id: result.unique_id
+                        unique_id: result.unique_id,
+                        application_id: result.id
                     });
                 }
             } catch (err) {
@@ -223,35 +224,25 @@
 
         if (fileMetaList.length > 0) {
             let fileNames = fileMetaList.map(f => f.name).join(", ");
-            let applicationData = {
-                serviceName: `Quick Upload (${printType})`,
-                sender: `${name} (Server Storage)`,
-                aadhaarName: name,
-                mobile: "Not Provided",
-                description: `Print Type: ${printType} | Files: ${fileNames}`,
-                frontImg: fileMetaList[0] ? fileMetaList[0].url : null,
-                backImg: fileMetaList[1] ? fileMetaList[1].url : null,
-                extraDocs: fileMetaList.slice(2).map(f => f.url),
-                date: new Date().toLocaleDateString(),
-                status: "Pending"
-            };
-
             try {
-                let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-                existing.push(applicationData);
-                localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
-            } catch (e) {
-                localStorage.removeItem("instantPrintQueue");
-                localStorage.setItem("instantPrintQueue", JSON.stringify([applicationData]));
-            }
-
-            alert(`✅ ${fileMetaList.length} files successfully Python Server par upload ho gayi hain!`);
-            
-            let isLoggedIn = localStorage.getItem("isLoggedIn");
-            if (isLoggedIn === "true") {
+                const queueResponse = await fetch("/api/print-queue", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {"Content-Type":"application/json"},
+                    body: JSON.stringify({
+                        customer_name: name,
+                        print_type: printType,
+                        description: `Print Type: ${printType} | Files: ${fileNames}`,
+                        application_ids: fileMetaList.map(f => f.application_id)
+                    })
+                });
+                const queueResult = await queueResponse.json();
+                if (!queueResponse.ok) throw new Error(queueResult.detail || "Print queue save failed");
+                alert(`✅ ${fileMetaList.length} files server par upload aur print queue mein save ho gayi hain!`);
                 window.location.href = "H login.html";
-            } else {
-                window.location.href = "HOME.html";
+            } catch (error) {
+                alert("Files upload ho gayi hain, lekin print queue save nahi hui: " + error.message);
+                submitBtn.disabled = false;
             }
         } else {
             alert("❌ Server par file upload nahi ho paayi. Kripya apna internet ya server check karein.");
