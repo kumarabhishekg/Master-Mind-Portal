@@ -257,8 +257,10 @@ async def upload_file(request: Request, file: UploadFile = File(...),
 @app.get("/api/files/{unique_id}")
 def download_file(unique_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
     record = db.query(Application).filter(Application.unique_id == unique_id).first()
-    if not record: raise HTTPException(404, "File not found")
-    if user.role != "admin" and record.mobile != user.mobile: raise HTTPException(403, "Access denied")
+    issued = db.query(IssuedDocument).filter(IssuedDocument.file_url == f"/api/files/{unique_id}").first()
+    if not record and not issued: raise HTTPException(404, "File not found")
+    owner_mobile = record.mobile if record else issued.target_mobile
+    if user.role != "admin" and owner_mobile != user.mobile: raise HTTPException(403, "Access denied")
     matches = list(UPLOAD_DIR.glob(unique_id + ".*"))
     if not matches: raise HTTPException(404, "File not found")
     return FileResponse(matches[0], filename=matches[0].name)
