@@ -35,6 +35,28 @@ def hash_password(password: str) -> str:
     derived = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
     return "scrypt$" + salt.hex() + "$" + derived.hex()
 
+def provision_admin_from_environment():
+    mobile = os.getenv("ADMIN_MOBILE", "").strip()
+    password = os.getenv("ADMIN_PASSWORD", "")
+    name = os.getenv("ADMIN_NAME", "Portal Administrator").strip() or "Portal Administrator"
+    if not mobile and not password: return
+    if not re.fullmatch(r"[0-9]{10}", mobile) or len(password) < 14:
+        raise RuntimeError("Set ADMIN_MOBILE to 10 digits and ADMIN_PASSWORD to at least 14 characters")
+    db = SessionLocal()
+    try:
+        account = db.query(User).filter(User.mobile == mobile).first()
+        if account is None:
+            db.add(User(name=name, mobile=mobile, email="", password=hash_password(password),
+                        status="Active", role="admin"))
+        else:
+            # Only the explicitly configured administrator account is promoted/reset here.
+            account.role = "admin"
+            account.status = "Active"
+            account.password = hash_password(password)
+        db.commit()
+    finally:
+        db.close()
+
 def verify_password(password: str, stored: str) -> tuple[bool, bool]:
     if stored.startswith("scrypt$"):
         try:
@@ -45,7 +67,7 @@ def verify_password(password: str, stored: str) -> tuple[bool, bool]:
     # One-time legacy plaintext compatibility; successful login upgrades the hash.
     return hmac.compare_digest(password, stored), True
 
-def make_session(user: User) -> str:
+provision_admin_from_environment()\n\ndef make_session(user: User) -> str:
     if not SESSION_SECRET:
         raise HTTPException(503, "Server authentication is not configured")
     payload = f"{user.id}.{int(time.time()) + SESSION_SECONDS}.{secrets.token_urlsafe(24)}"
