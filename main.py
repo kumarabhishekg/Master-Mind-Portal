@@ -1,4 +1,4 @@
-import os, re, uuid, hmac, hashlib, secrets, time, shutil
+import os, re, uuid, hmac, hashlib, secrets, time, shutil, json
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
-from database import engine, SessionLocal, Base, Application, User, IssuedDocument, PrintQueue
+from database import engine, SessionLocal, Base, Application, User, IssuedDocument, PrintQueue, ServiceRequest
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -195,7 +195,7 @@ def update_user_status(user_id: int, status: str, _: User = Depends(admin_user),
 def update_application(application_id: int, status: str, _: User = Depends(admin_user), db: Session = Depends(get_db)):
     if status not in {"Pending", "In Progress", "Completed", "Rejected"}:
         raise HTTPException(400, "Invalid application status")
-    record = db.query(Application).filter(Application.id == application_id).first()
+    record = db.query(ServiceRequest).filter(ServiceRequest.id == application_id).first()
     if not record: raise HTTPException(404, "Application not found")
     record.status = status
     db.commit()
@@ -203,7 +203,7 @@ def update_application(application_id: int, status: str, _: User = Depends(admin
 
 @app.delete("/api/applications/{application_id}")
 def delete_application(application_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
-    record = db.query(Application).filter(Application.id == application_id).first()
+    record = db.query(ServiceRequest).filter(ServiceRequest.id == application_id).first()
     if not record: raise HTTPException(404, "Application not found")
     db.delete(record)
     db.commit()
@@ -221,22 +221,56 @@ def delete_user(user_id: int, actor: User = Depends(admin_user), db: Session = D
 
 @app.get("/api/applications")
 def get_all_applications(_: User = Depends(admin_user), db: Session = Depends(get_db)):
-    apps = db.query(Application).order_by(Application.id.desc()).all()
-    return {"status":"success","data":[{"id":a.id,"customer_name":a.customer_name,"service_name":a.service_name,
-            "mobile":a.mobile,"description":a.description,"file_url":a.file_url,"unique_id":a.unique_id,
-            "status":a.status} for a in apps]}
+    requests = db.query(ServiceRequest).order_by(ServiceRequest.id.desc()).all()
+    output = []
+    for item in requests:
+        ids = [int(x) for x in item.application_ids.split(",") if x.isdigit()]
+        files = db.query(Application).filter(Application.id.in_(ids)).all() if ids else []
+        file_data = []
+        for uploaded in files:
+            matches = list(UPLOAD_DIR.glob(uploaded.unique_id + ".*"))
+            file_data.append({"id":uploaded.id,"url":uploaded.file_url,
+                "name":matches[0].name if matches else uploaded.unique_id})
+        output.append({"id":item.id,"customer_name":item.customer_name,"service_name":item.service_name,
+            "mobile":item.owner_mobile,"description":item.description,"file_url":file_data[0]["url"] if file_data else "",
+            "files":file_data,"form_data":json.loads(item.form_data or "{}"),"status":item.status})
+    return {"status":"success","data":output}
 
 
+
+class ServiceRequestCreate(BaseModel):
+    service_name: str = Field(min_length=1, max_length=120)
+    customer_name: str = Field(min_length=1, max_length=100)
+    description: str = Field(default="", max_length=1000)
+    form_data: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    file_urls: list[str] = Field(default_factory=list)
+
+def save_service_request(data: ServiceRequestCreate, user: User, db: Session):
+    urls = list(dict.fromkeys(data.file_urls))
+    if len(urls) > 20: raise HTTPException(400, "Too many uploaded files")
+    uploaded = db.query(Application).filter(Application.file_url.in_(urls), Application.mobile == user.mobile).all() if urls else []
+    if len(uploaded) != len(urls): raise HTTPException(400, "One or more uploaded files are invalid")
+    allowed_fields = {"applicantName", "aadhaarName", "serviceType", "proofType", "description", "altMobile"}
+    safe_data = {k:v for k,v in data.form_data.items() if k in allowed_fields and isinstance(v,(str,int,float,bool))}
+    record = ServiceRequest(owner_mobile=user.mobile, customer_name=data.customer_name.strip(),
+        service_name=data.service_name.strip(), description=data.description.strip(),
+        form_data=json.dumps(safe_data), application_ids=",".join(str(x.id) for x in uploaded),
+        status="Pending", created_at=time.strftime("%Y-%m-%d %H:%M:%S"))
+    db.add(record); db.commit(); db.refresh(record)
+    return {"status":"success","data":{"id":record.id}}
+
+@app.post("/api/service-requests")
+def create_service_request(data: ServiceRequestCreate, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return save_service_request(data, user, db)
 
 class InquiryCreate(BaseModel):
     service: str = Field(min_length=1, max_length=120)
 
 @app.post("/api/inquiries")
 def create_inquiry(data: InquiryCreate, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    record = Application(customer_name=user.name, service_name="Coming Soon Inquiry", mobile=user.mobile,
-        description=("Requested service: " + data.service.strip())[:1000], status="Pending")
-    db.add(record); db.commit()
-    return {"status":"success"}
+    request_data = ServiceRequestCreate(service_name="Service inquiry", customer_name=user.name,
+        description=("Requested service: " + data.service.strip())[:1000])
+    return save_service_request(request_data, user, db)
 
 class PrintQueueCreate(BaseModel):
     customer_name: str = Field(min_length=1, max_length=100)
