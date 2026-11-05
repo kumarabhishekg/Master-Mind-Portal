@@ -387,14 +387,7 @@
         document.getElementById("viewModal").style.display = "none";
     }
 
-    function deleteIssuedDoc(realIndex) {
-        if(confirm("Kya aap is document ko delete karna chahte hain?")) {
-            let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
-            issuedList.splice(realIndex, 1);
-            localStorage.setItem("userIssuedDocs", JSON.stringify(issuedList));
-            loadIssuedDocuments();
-        }
-    }
+
 </script>
 
 </body>
