@@ -148,6 +148,39 @@ def delete_record_files(record: PortalRecord, db: Session):
         db.query(Application).filter(Application.file_url.like(f"%/storage/{filename}")).delete(synchronize_session=False)
 
 
+def ensure_quick_upload_records(db: Session):
+    """Surface Quick Upload files in Instant Print if the QR page queue save failed."""
+    uploads = db.query(Application).filter(Application.service_name.like("Quick Upload%")).all()
+    queue_rows = db.query(PortalRecord).filter(PortalRecord.category == "instantPrintQueue").all()
+    referenced_files = set()
+    for record in queue_rows:
+        refs = storage_names(json.loads(record.payload))
+        referenced_files.update(refs["database"])
+        referenced_files.update(refs["legacy"])
+
+    added = False
+    for upload in uploads:
+        upload_refs = storage_names(upload.file_url or "")
+        upload_ids = {upload.unique_id} | upload_refs["database"] | upload_refs["legacy"]
+        if upload_ids & referenced_files:
+            continue
+        payload = {
+            "serviceName": upload.service_name or "Quick Upload",
+            "sender": f"{upload.customer_name or 'Customer'} ({upload.mobile or 'Not Provided'})",
+            "aadhaarName": upload.customer_name or "Customer",
+            "mobile": upload.mobile or "Not Provided",
+            "description": upload.description or "Quick Upload",
+            "frontImg": upload.file_url,
+            "date": "",
+            "status": upload.status or "Pending",
+        }
+        db.add(PortalRecord(category="instantPrintQueue", payload=json.dumps(payload), status=payload["status"]))
+        referenced_files.update(upload_ids)
+        added = True
+    if added:
+        db.commit()
+
+
 @app.get("/")
 def serve_home():
     return FileResponse(BASE_DIR / "HOME.html")
@@ -364,6 +397,8 @@ def get_records(request: Request, category: str | None = None, db: Session = Dep
         if category not in RECORD_CATEGORIES:
             raise HTTPException(status_code=400, detail="Unknown record category.")
         query = query.filter(PortalRecord.category == category)
+        if category == "instantPrintQueue":
+            ensure_quick_upload_records(db)
     principal = get_principal(request)
     rows = query.order_by(PortalRecord.id.desc()).all()
     if principal.get("role") == "admin":
