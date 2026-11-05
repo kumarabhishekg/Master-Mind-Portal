@@ -165,380 +165,124 @@
     </div>
 </div>
 
+
 <script>
-    function switchTab(tabId, btn) {
-        document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
-        document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        btn.classList.add('active');
-        loadAllData();
-    }
-
-    function filterTable(inputId, tableBodyId) {
-        let input = document.getElementById(inputId).value.toLowerCase();
-        let rows = document.getElementById(tableBodyId).getElementsByTagName("tr");
-        for (let i = 0; i < rows.length; i++) {
-            let rowText = rows[i].innerText.toLowerCase();
-            rows[i].style.display = rowText.includes(input) ? "" : "none";
-        }
-    }
-
-    function loadAllData() {
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        let userBody = document.getElementById("userTableBody");
-        if (users.length === 0) {
-            userBody.innerHTML = `<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>`;
-        } else {
-            userBody.innerHTML = users.map((u, i) => {
-                let status = u.status || "Active";
-                let statusClass = status === "Blocked" ? "status-blocked" : "status-active";
-                let btnText = status === "Blocked" ? "Unblock" : "Block";
-                let btnClass = status === "Blocked" ? "unblock-btn" : "block-btn";
-                return `<tr>
-                    <td>${i+1}</td>
-                    <td><b>${u.name || 'N/A'}</b></td>
-                    <td>${u.mobile || 'N/A'}</td>
-                    <td>${u.email || 'N/A'}</td>
-                    <td><span class="status-badge ${statusClass}">${status}</span></td>
-                    <td>
-                        <button class="${btnClass}" onclick="toggleBlockUser(${i})">${btnText}</button>
-                        <button class="del-btn" onclick="deleteUser(${i})">Delete</button>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
-
-        loadTableData("cscApplications", "cscTableBody");
-        loadTableData("bankingApplications", "bankingTableBody");
-        loadTableData("gstApplications", "gstTableBody");
-        loadTableData("travelApplications", "travelTableBody");
-        loadInstantPrintData();
-        loadCompletedData();
-    }
-
-    function toggleBlockUser(index) {
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        if (users[index]) {
-            users[index].status = users[index].status === "Blocked" ? "Active" : "Blocked";
-            localStorage.setItem("mastermindUsers", JSON.stringify(users));
-            loadAllData();
-        }
-    }
-
-    function deleteUser(index) {
-        if (confirm("Kya aap is registered user ko delete karna chahte hain?")) {
-            let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-            users.splice(index, 1);
-            localStorage.setItem("mastermindUsers", JSON.stringify(users));
-            loadAllData();
-        }
-    }
-
-    function loadTableData(storageKey, tbodyId) {
-        let rawData = JSON.parse(localStorage.getItem(storageKey)) || [];
-        let pendingData = rawData.map((item, index) => ({...item, originalIndex: index})).filter(item => item.status !== "Completed");
-        let tbody = document.getElementById(tbodyId);
-        
-        if (pendingData.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="5" class="no-data">Koi pending application nahi hai.</td></tr>`; 
-            return; 
-        }
-
-        tbody.innerHTML = pendingData.map((item, i) => {
-            return `<tr>
-                <td>${i+1}</td>
-                <td><b>${item.serviceName || 'N/A'}</b></td>
-                <td>${item.sender || 'N/A'}</td>
-                <td><span class="status-badge" style="background:#fff3cd; color:#856404;">${item.status || "Pending"}</span></td>
-                <td>
-                    <button class="complete-btn" onclick="markAsCompleted('${storageKey}', ${item.originalIndex})">Complete</button>
-                    <button class="view-btn" onclick="showDetails('${storageKey}', ${item.originalIndex})">View</button>
-                    <button class="del-btn" onclick="deleteSingleItem('${storageKey}', ${item.originalIndex})">Delete</button>
-                </td>
-            </tr>`;
-        }).join('');
-    }
-
-    function markAsCompleted(storageKey, index) {
-        if(confirm("Kya aap is application ko 'Completed' mark karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-            if(data[index]) {
-                data[index].status = "Completed";
-                localStorage.setItem(storageKey, JSON.stringify(data));
-                loadAllData();
-            }
-        }
-    }
-
-    function renderFileElement(fileSrc, labelText, index) {
-        if (!fileSrc || typeof fileSrc !== "string") return "";
-        let isPdf = fileSrc.toLowerCase().endsWith(".pdf") || fileSrc.includes("application/pdf") || fileSrc.includes(".pdf?");
-        let cleanTitle = labelText || `Document / File ${index + 1}`;
-        let downloadExt = isPdf ? "pdf" : "jpg";
-
-        let previewMedia = isPdf
-            ? `<embed src="${fileSrc}" type="application/pdf" class="preview-pdf">`
-            : `<img src="${fileSrc}" class="preview-img" alt="${cleanTitle}">`;
-
-        return `
-            <div class="doc-block">
-                <div class="doc-heading-row">
-                    <p class="doc-heading-title">${cleanTitle}:</p>
-                    <div class="doc-links">
-                        <a href="${fileSrc}" target="_blank" class="link-view">🔍 Open</a>
-                        <a href="${fileSrc}" download="${cleanTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}.${downloadExt}" class="link-dl">⬇ Download</a>
-                    </div>
-                </div>
-                ${previewMedia}
-            </div>
-        `;
-    }
-
-    function collectAllItemFiles(item) {
-        let allFiles = [];
-        let namesList = item.fileNamesList || item.docLabels || item.labels || [];
-
-        function addFile(src, customLabel) {
-            if (!src || typeof src !== "string") return;
-            let idx = allFiles.length;
-            let finalLabel = customLabel || namesList[idx] || (idx === 0 ? "Aadhaar Card Front Photo" : idx === 1 ? "Aadhaar Card Back Photo" : `Document / File ${idx + 1}`);
-            allFiles.push({ src: src, label: finalLabel });
-        }
-
-        if (item.filesArray && Array.isArray(item.filesArray)) {
-            item.filesArray.forEach((f, idx) => {
-                if (typeof f === "string") {
-                    addFile(f, namesList[idx]);
-                } else if (f && (f.url || f.file_url || f.data || f.src)) {
-                    addFile(f.url || f.file_url || f.data || f.src, f.label || f.title || f.name || namesList[idx]);
-                }
-            });
-        }
-
-        if (item.documents && Array.isArray(item.documents)) {
-            item.documents.forEach((d, idx) => {
-                if (typeof d === "string") {
-                    addFile(d, namesList[idx]);
-                } else if (d && (d.url || d.file_url || d.data || d.src)) {
-                    addFile(d.url || d.file_url || d.data || d.src, d.label || d.title || d.name || namesList[idx]);
-                }
-            });
-        }
-
-        if (item.frontImg) addFile(item.frontImg, namesList[0] || "Aadhaar Card Front Photo");
-        if (item.file_url) addFile(item.file_url, namesList[0] || "Aadhaar Card Front Photo");
-        if (item.backImg) addFile(item.backImg, namesList[1] || "Aadhaar Card Back Photo");
-        if (item.aadhaarBack) addFile(item.aadhaarBack, "Aadhaar Card Back Photo");
-        if (item.backPhoto) addFile(item.backPhoto, "Aadhaar Card Back Photo");
-
-        if (item.extraDocs && Array.isArray(item.extraDocs)) {
-            item.extraDocs.forEach((doc, idx) => {
-                let labelIndex = idx + 2;
-                if (typeof doc === "string") {
-                    addFile(doc, namesList[labelIndex] || `Document / File ${labelIndex + 1}`);
-                } else if (doc && (doc.url || doc.file_url || doc.data || doc.src)) {
-                    addFile(doc.url || doc.file_url || doc.data || doc.src, doc.label || doc.title || doc.name || namesList[labelIndex] || `Document / File ${labelIndex + 1}`);
-                }
-            });
-        }
-
-        const skipKeys = new Set(["serviceName", "aadhaarName", "customer_name", "mobile", "description", "sender", "status", "date", "time", "category", "storageKey", "originalIndex", "unique_id", "filesArray", "documents", "extraDocs", "fileNamesList", "docLabels", "labels", "frontImg", "backImg", "aadhaarBack", "backPhoto", "file_url"]);
-        
-        Object.keys(item).forEach(key => {
-            if (skipKeys.has(key)) return;
-            let val = item[key];
-            let cleanKeyLabel = key.replace(/([A-Z0-9])/g, ' $1').replace(/_/g, ' ').replace(/^./, s => s.toUpperCase()).trim();
-
-            if (typeof val === "string" && (val.startsWith("data:") || val.startsWith("http") || val.includes("/storage/"))) {
-                addFile(val, cleanKeyLabel);
-            } else if (Array.isArray(val)) {
-                val.forEach((v, i) => {
-                    if (typeof v === "string" && (v.startsWith("data:") || v.startsWith("http") || v.includes("/storage/"))) {
-                        addFile(v, `${cleanKeyLabel} ${i + 1}`);
-                    } else if (v && (v.url || v.file_url || v.data || v.src)) {
-                        addFile(v.url || v.file_url || v.data || v.src, v.label || v.name || `${cleanKeyLabel} ${i + 1}`);
-                    }
-                });
-            }
-        });
-
-        return allFiles;
-    }
-
-    function showDetails(storageKey, index) {
-        let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-        let item = data[index];
-        if(!item) return;
-
-        let senderMobile = "";
-        if (item.sender) {
-            let match = item.sender.match(/([0-9]{10})/);
-            if (match) senderMobile = match[1];
-        }
-        if (!senderMobile && item.mobile && /^[0-9]{10}$/.test(item.mobile)) {
-            senderMobile = item.mobile;
-        }
-
-        let targetSelectHtml = `<select id="targetUserMobile" style="width: 100%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc;">`;
-        if (senderMobile) {
-            targetSelectHtml += `<option value="${senderMobile}">${item.sender || senderMobile} (${senderMobile})</option>`;
-        } else {
-            targetSelectHtml += `<option value="">No Sender Mobile Found</option>`;
-        }
-        targetSelectHtml += `</select>`;
-        document.getElementById("targetUserBox").innerHTML = targetSelectHtml;
-
-        let allFiles = collectAllItemFiles(item);
-        let docsHtml = allFiles.length > 0
-            ? allFiles.map((fileObj, idx) => renderFileElement(fileObj.src, fileObj.label, idx)).join('')
-            : `<p style="color:#888; font-style:italic;">Koi file uploaded nahi hai.</p>`;
-
-        document.getElementById("modalBodyText").innerHTML = `
-            <p><strong>Service:</strong> ${item.serviceName || 'N/A'}</p>
-            <p><strong>Name / Customer:</strong> ${item.aadhaarName || item.customer_name || 'N/A'}</p>
-            <p><strong>Mobile:</strong> ${item.mobile || 'N/A'}</p>
-            <p><strong>Description:</strong> ${item.description || 'N/A'}</p>
-            <p><strong>Sender Info:</strong> ${item.sender || 'N/A'}</p>
-            <hr>${docsHtml}
-        `;
-        document.getElementById("detailsModal").style.display = "flex";
-    }
-
-    async function sendDocumentFromApp() {
-        let mobileSelect = document.getElementById("targetUserMobile");
-        let mobile = mobileSelect ? mobileSelect.value.trim() : "";
-        let title = document.getElementById("sendDocTitle").value.trim();
-        let fileInput = document.getElementById("sendDocFile");
-
-        if(!title || fileInput.files.length === 0) {
-            alert("Title aur File dono zaroori hain!");
-            return;
-        }
-        if(!mobile) {
-            alert("Sender ka mobile number nahi mila!");
-            return;
-        }
-
-        let file = fileInput.files[0];
-        let formData = new FormData();
-        formData.append("file", file);
-        formData.append("customer_name", "Admin Issued");
-        formData.append("service_name", title);
-        formData.append("mobile", mobile);
-        formData.append("description", "Issued by Admin");
-
-        try {
-            let response = await fetch("/api/admin/documents", {
-                method: "POST",
-                body: formData
-            });
-            let result = await response.json();
-
-            if (result.status === "success") {
-                alert(`Document safaltapurvak sender (Mobile: ${mobile}) ko database mein bhej diya gaya hai!`);
-                document.getElementById("sendDocTitle").value = "";
-                fileInput.value = "";
-                closeModal('detailsModal');
-            } else {
-                alert("Upload failed: " + result.message);
-            }
-        } catch (err) {
-            alert("⚠️ Server connection error! Kripya check karein ki FastAPI server chal raha hai ya nahi.");
-        }
-    }
-
-    function deleteSingleItem(storageKey, index) {
-        if (confirm("Kya aap is record ko delete karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-            data.splice(index, 1);
-            localStorage.setItem(storageKey, JSON.stringify(data));
-            loadAllData();
-        }
-    }
-
-    function loadInstantPrintData() {
-        let rawData = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-        let tbody = document.getElementById("instantTableBody");
-
-        if (rawData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="no-data">Koi instant print request nahi hai.</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = rawData.map((item, index) => {
-            let allFiles = collectAllItemFiles(item);
-            let filesCount = allFiles.length || 1;
-
-            return `<tr>
-                <td>${index + 1}</td>
-                <td><b>${item.aadhaarName || 'Customer'}</b></td>
-                <td>📁 ${filesCount} File(s)</td>
-                <td>📄 ${filesCount} Page(s)</td>
-                <td style="text-align: left; font-size: 12px;">${item.description || 'Quick Upload'}</td>
-                <td>
-                    <button class="complete-btn" onclick="openEditorPage(${index})">⚡ Edit & Print</button>
-                    <button class="del-btn" onclick="deleteInstantItem(${index})">Delete</button>
-                </td>
-            </tr>`;
-        }).join('');
-    }
-
-    function openEditorPage(index) {
-        localStorage.setItem("activeInstantIndex", index);
-        window.location.href = "QR C.html";
-    }
-
-    function deleteInstantItem(index) {
-        if(confirm("Kya aap is record ko delete karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-            data.splice(index, 1);
-            localStorage.setItem("instantPrintQueue", JSON.stringify(data));
-            loadInstantPrintData();
-        }
-    }
-
-    function loadCompletedData() {
-        let tbody = document.getElementById("completedTableBody");
-        let categories = [
-            { key: "cscApplications", name: "CSC" }, 
-            { key: "bankingApplications", name: "Banking" }, 
-            { key: "gstApplications", name: "GST" }, 
-            { key: "travelApplications", name: "Travel" }
-        ];
-        let allCompleted = [];
-
-        categories.forEach(cat => {
-            let data = JSON.parse(localStorage.getItem(cat.key)) || [];
-            data.forEach((item, index) => { 
-                if (item.status === "Completed") {
-                    allCompleted.push({...item, category: cat.name, storageKey: cat.key, originalIndex: index}); 
-                }
-            });
-        });
-
-        if (allCompleted.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="6" class="no-data">Koi completed work nahi hai.</td></tr>`; 
-            return; 
-        }
-
-        tbody.innerHTML = allCompleted.map((item, i) => {
-            return `<tr>
-                <td>${i+1}</td>
-                <td><b>${item.category}</b></td>
-                <td>${item.serviceName || 'N/A'}</td>
-                <td>${item.sender || 'N/A'}</td>
-                <td><span class="status-badge" style="background:#d1e7dd; color:#0f5132;">Completed</span></td>
-                <td>
-                    <button class="view-btn" onclick="showDetails('${item.storageKey}', ${item.originalIndex})">View</button>
-                    <button class="del-btn" onclick="deleteSingleItem('${item.storageKey}', ${item.originalIndex})">Delete</button>
-                </td>
-            </tr>`;
-        }).join('');
-    }
-
-    function closeModal(id) { document.getElementById(id).style.display = "none"; }
-
-    window.onload = loadAllData;
+const state = { users: [], applications: [], queue: [], selectedApplication: null };
+const $ = id => document.getElementById(id);
+const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+async function api(url, options={}) {
+    const response = await fetch(url, {credentials:"same-origin", ...options});
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || data.message || ("Request failed: " + response.status));
+    return data;
+}
+function switchTab(tabId, btn) {
+    document.querySelectorAll(".section").forEach(sec => sec.classList.remove("active"));
+    document.querySelectorAll(".sidebar button").forEach(b => b.classList.remove("active"));
+    $(tabId).classList.add("active");
+    btn.classList.add("active");
+    loadAllData().catch(showError);
+}
+function filterTable(inputId, tableBodyId) {
+    const term = $(inputId).value.toLowerCase();
+    Array.from($(tableBodyId).rows).forEach(row => row.style.display = row.innerText.toLowerCase().includes(term) ? "" : "none");
+}
+function categoryFor(app) {
+    const s = (app.service_name || "").toLowerCase();
+    if (s.includes("bank") || s.includes("aeps") || s.includes("loan") || s.includes("atm")) return "banking";
+    if (s.includes("gst") || s.includes("tax") || s.includes("company") || s.includes("tds") || s.includes("tan")) return "gst";
+    if (s.includes("travel") || s.includes("bus") || s.includes("flight") || s.includes("train") || s.includes("hotel")) return "travel";
+    return "csc";
+}
+async function loadAllData() {
+    const [users, apps, queue] = await Promise.all([
+        api("/api/users"), api("/api/applications"), api("/api/print-queue")
+    ]);
+    state.users = users.data || [];
+    state.applications = apps.data || [];
+    state.queue = queue.data || [];
+    renderUsers();
+    renderApplications();
+    renderQueue();
+}
+function renderUsers() {
+    const body = $("userTableBody");
+    if (!state.users.length) { body.innerHTML = '<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>'; return; }
+    body.innerHTML = state.users.map((u,i) => {
+        const blocked = u.status === "Blocked";
+        return '<tr><td>'+(i+1)+'</td><td><b>'+esc(u.name)+'</b></td><td>'+esc(u.mobile)+'</td><td>'+esc(u.email)+'</td><td><span class="status-badge '+(blocked?"status-blocked":"status-active")+'">'+esc(u.status)+'</span></td><td><button class="'+(blocked?"unblock-btn":"block-btn")+'" onclick="toggleBlockUser('+u.id+')">'+(blocked?"Unblock":"Block")+'</button> <button class="del-btn" onclick="deleteUser('+u.id+')">Delete</button></td></tr>';
+    }).join("");
+}
+function renderApplications() {
+    const groups = {csc:[],banking:[],gst:[],travel:[]};
+    state.applications.forEach(a => groups[categoryFor(a)].push(a));
+    Object.keys(groups).forEach(key => {
+        const bodyId = ({csc:"cscTableBody",banking:"bankingTableBody",gst:"gstTableBody",travel:"travelTableBody"})[key];
+        const rows = groups[key].filter(a => a.status !== "Completed");
+        $(bodyId).innerHTML = rows.length ? rows.map((a,i) =>
+            '<tr><td>'+(i+1)+'</td><td><b>'+esc(a.service_name)+'</b></td><td>'+esc(a.customer_name)+' ('+esc(a.mobile)+')</td><td><span class="status-badge">'+esc(a.status)+'</span></td><td><button class="complete-btn" onclick="markAsCompleted('+a.id+')">Complete</button> <button class="view-btn" onclick="showDetails('+a.id+')">View</button> <button class="del-btn" onclick="deleteSingleItem('+a.id+')">Delete</button></td></tr>'
+        ).join("") : '<tr><td colspan="5" class="no-data">Koi pending application nahi hai.</td></tr>';
+    });
+    const done = state.applications.filter(a => a.status === "Completed");
+    $("completedTableBody").innerHTML = done.length ? done.map((a,i) =>
+        '<tr><td>'+(i+1)+'</td><td>'+esc(categoryFor(a).toUpperCase())+'</td><td>'+esc(a.service_name)+'</td><td>'+esc(a.customer_name)+' ('+esc(a.mobile)+')</td><td>Completed</td><td><button class="view-btn" onclick="showDetails('+a.id+')">View</button> <button class="del-btn" onclick="deleteSingleItem('+a.id+')">Delete</button></td></tr>'
+    ).join("") : '<tr><td colspan="6" class="no-data">Koi completed work nahi hai.</td></tr>';
+}
+function renderQueue() {
+    const body = $("instantTableBody");
+    body.innerHTML = state.queue.length ? state.queue.map((q,i) =>
+        '<tr><td>'+(i+1)+'</td><td><b>'+esc(q.customer_name)+'</b></td><td>📁 '+q.files.length+' File(s)</td><td>'+q.files.length+' Page(s)</td><td>'+esc(q.description || q.print_type)+'</td><td><button class="complete-btn" onclick="openEditorPage('+q.id+')">⚡ Edit & Print</button> <button class="del-btn" onclick="deleteInstantItem('+q.id+')">Delete</button></td></tr>'
+    ).join("") : '<tr><td colspan="6" class="no-data">Koi instant print request nahi hai.</td></tr>';
+}
+async function toggleBlockUser(id) {
+    const u = state.users.find(x => x.id === id); if (!u) return;
+    try { await api("/api/users/"+id+"/status?status="+(u.status === "Blocked" ? "Active" : "Blocked"), {method:"PATCH"}); await loadAllData(); }
+    catch(e) { showError(e); }
+}
+async function deleteUser(id) {
+    if (!confirm("Kya aap is registered user ko delete karna chahte hain?")) return;
+    try { await api("/api/users/"+id, {method:"DELETE"}); await loadAllData(); }
+    catch(e) { showError(e); }
+}
+async function markAsCompleted(id) {
+    if (!confirm("Is application ko Completed mark karein?")) return;
+    try { await api("/api/applications/"+id+"?status=Completed", {method:"PATCH"}); await loadAllData(); }
+    catch(e) { showError(e); }
+}
+async function deleteSingleItem(id) {
+    if (!confirm("Kya aap is application ko delete karna chahte hain?")) return;
+    try { await api("/api/applications/"+id, {method:"DELETE"}); await loadAllData(); }
+    catch(e) { showError(e); }
+}
+function showDetails(id) {
+    const item = state.applications.find(x => x.id === id); if (!item) return;
+    state.selectedApplication = item;
+    const files = item.file_url ? '<div class="doc-block"><p class="doc-heading-title">Uploaded file</p><a class="link-view" target="_blank" rel="noopener" href="'+esc(item.file_url)+'">Open file</a> <a class="link-dl" href="'+esc(item.file_url)+'" download>Download</a></div>' : '<p>No uploaded file.</p>';
+    $("modalBodyText").innerHTML = '<p><strong>Service:</strong> '+esc(item.service_name)+'</p><p><strong>Name:</strong> '+esc(item.customer_name)+'</p><p><strong>Mobile:</strong> '+esc(item.mobile)+'</p><p><strong>Description:</strong> '+esc(item.description)+'</p><hr>'+files;
+    $("targetUserBox").innerHTML = '<p>Recipient: '+esc(item.mobile)+'</p>';
+    $("detailsModal").style.display = "flex";
+}
+async function sendDocumentFromApp() {
+    const item = state.selectedApplication;
+    const title = $("sendDocTitle").value.trim();
+    const file = $("sendDocFile").files[0];
+    if (!item || !title || !file) { alert("Application, title aur file zaroori hain."); return; }
+    const form = new FormData(); form.append("mobile", item.mobile); form.append("title", title); form.append("file", file);
+    try {
+        await api("/api/admin/documents", {method:"POST",body:form});
+        alert("Document user ke account mein issue ho gaya.");
+        $("sendDocTitle").value = ""; $("sendDocFile").value = ""; closeModal("detailsModal");
+    } catch(e) { showError(e); }
+}
+function openEditorPage(id) { window.location.href = "QR C.html?id="+encodeURIComponent(id); }
+async function deleteInstantItem(id) {
+    if (!confirm("Is print request ko delete karein?")) return;
+    try { await api("/api/print-queue/"+id, {method:"DELETE"}); await loadAllData(); }
+    catch(e) { showError(e); }
+}
+function closeModal(id) { $(id).style.display = "none"; }
+function showError(error) { alert("Server/API error: "+(error.message || error)); }
+window.onload = () => loadAllData().catch(showError);
 </script>
 
 </body>
