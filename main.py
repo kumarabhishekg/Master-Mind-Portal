@@ -67,7 +67,9 @@ def verify_password(password: str, stored: str) -> tuple[bool, bool]:
     # One-time legacy plaintext compatibility; successful login upgrades the hash.
     return hmac.compare_digest(password, stored), True
 
-provision_admin_from_environment()\n\ndef make_session(user: User) -> str:
+provision_admin_from_environment()
+
+def make_session(user: User) -> str:
     if not SESSION_SECRET:
         raise HTTPException(503, "Server authentication is not configured")
     payload = f"{user.id}.{int(time.time()) + SESSION_SECONDS}.{secrets.token_urlsafe(24)}"
