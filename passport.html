@@ -217,7 +217,19 @@
                 status: "Pending"
             };
 
-            // Application is already stored by the authenticated /api/upload endpoint.
+                        const saveResponse = await fetch("/api/service-requests", {
+                method: "POST", credentials: "same-origin",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    service_name: applicationData.serviceName,
+                    customer_name: applicantName,
+                    description: applicationData.description,
+                    form_data: {applicantName: applicantName, description: applicationData.description},
+                    file_urls: [frontUrl, backUrl, marksheetUrl]
+                })
+            });
+            const saveResult = await saveResponse.json();
+            if (!saveResponse.ok) throw new Error(saveResult.detail || "Application save failed");
 
             alert("Passport Application Successfully Submitted!");
             window.location.href = "H login.html";
