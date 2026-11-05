@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base, Application, User
@@ -84,7 +84,7 @@ class LoginInput(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 @app.post("/api/signup")
-def register_user(user: UserCreate, response, db: Session = Depends(get_db)):
+def register_user(user: UserCreate, response: Response, db: Session = Depends(get_db)):
     if db.query(User).filter(User.mobile == user.mobile).first():
         raise HTTPException(409, "Mobile number already registered")
     new_user = User(name=user.name.strip(), mobile=user.mobile, email=str(user.email).lower(),
@@ -93,7 +93,7 @@ def register_user(user: UserCreate, response, db: Session = Depends(get_db)):
     return {"status": "success", "message": "User registered successfully"}
 
 @app.post("/api/auth/login")
-def login(data: LoginInput, response, db: Session = Depends(get_db)):
+def login(data: LoginInput, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.mobile == data.mobile).first()
     if not user or user.status == "Blocked":
         raise HTTPException(401, "Invalid mobile number or password")
@@ -112,7 +112,7 @@ def who_am_i(user: User = Depends(current_user)):
     return {"status": "success", "user": {"name": user.name, "mobile": user.mobile, "role": user.role}}
 
 @app.post("/api/auth/logout")
-def logout(response):
+def logout(response: Response):
     response.delete_cookie(COOKIE_NAME, path="/", secure=True, httponly=True, samesite="lax")
     response.headers["Cache-Control"] = "no-store"
     return {"status": "success"}
