@@ -180,7 +180,13 @@ def download_file(unique_id: str, user: User = Depends(current_user), db: Sessio
     return FileResponse(matches[0], filename=matches[0].name)
 
 @app.get("/{file_path:path}")
-def serve_files_and_pages(file_path: str):
+def serve_files_and_pages(file_path: str, request: Request, db: Session = Depends(get_db)):
+    # Protect dashboards at the server; hiding links in the browser is not access control.
+    if file_path == "admin.html":
+        actor = current_user(request, db)
+        if actor.role != "admin": raise HTTPException(403, "Admin access required")
+    if file_path == "H login.html":
+        current_user(request, db)
     # Only serve HTML pages and known static assets; never expose Python, DB, config or arbitrary files.
     candidate = Path(file_path)
     if candidate.is_absolute() or ".." in candidate.parts or candidate.suffix.lower() in {".py",".db",".sqlite",".env",".json",".txt",".pem",".key"}:
