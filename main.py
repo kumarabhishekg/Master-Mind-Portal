@@ -397,9 +397,9 @@ def get_records(request: Request, category: str | None = None, db: Session = Dep
         if category not in RECORD_CATEGORIES:
             raise HTTPException(status_code=400, detail="Unknown record category.")
         query = query.filter(PortalRecord.category == category)
-        if category == "instantPrintQueue":
-            ensure_quick_upload_records(db)
     principal = get_principal(request)
+    if principal.get("role") == "admin" and category == "instantPrintQueue":
+        ensure_quick_upload_records(db)
     rows = query.order_by(PortalRecord.id.desc()).all()
     if principal.get("role") == "admin":
         data = [record_json(row) for row in rows]
