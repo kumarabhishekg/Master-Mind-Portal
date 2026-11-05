@@ -65,12 +65,14 @@
     <button onclick="switchTab('travel', this)">🚆 Pending Travel</button>
     <button onclick="switchTab('instantPrint', this)" style="color: #ffd700; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 15px;">⚡ Instant Print</button>
     <button onclick="switchTab('completed', this)">✅ Completed Work</button>
+    <button onclick="adminLogout()">🚪 Logout</button>
 </div>
 
 <div class="main-content">
     
     <div id="users" class="section active">
         <h3><span>Registered Users</span> <input type="text" id="searchUsers" class="search-box" onkeyup="filterTable('searchUsers', 'userTableBody')" placeholder="🔍 Search User..."></h3>
+        <div id="newSignupNotice" role="status" aria-live="polite" hidden style="margin: 0 0 12px; padding: 12px 16px; border-radius: 8px; background: #e8f7ee; color: #176b36; font-weight: 600;"></div>
         <div class="table-responsive">
             <table>
                 <thead><tr><th>Sr.</th><th>Name</th><th>Mobile</th><th>Email</th><th>Status</th><th>Action</th></tr></thead>
@@ -166,6 +168,18 @@
 </div>
 
 <script>
+    let portalRecords = {};
+    let portalUsers = [];
+    let registeredUsersLoaded = false;
+
+    async function adminLogout() {
+        await fetch("/api/logout", { method: "POST" });
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("loggedInUserName");
+        localStorage.removeItem("loggedInUserMobile");
+        window.location.href = "login.html";
+    }
+
     function switchTab(tabId, btn) {
         document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
         document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
@@ -183,30 +197,56 @@
         }
     }
 
-    function loadAllData() {
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        let userBody = document.getElementById("userTableBody");
-        if (users.length === 0) {
-            userBody.innerHTML = `<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>`;
-        } else {
-            userBody.innerHTML = users.map((u, i) => {
-                let status = u.status || "Active";
-                let statusClass = status === "Blocked" ? "status-blocked" : "status-active";
-                let btnText = status === "Blocked" ? "Unblock" : "Block";
-                let btnClass = status === "Blocked" ? "unblock-btn" : "block-btn";
-                return `<tr>
-                    <td>${i+1}</td>
-                    <td><b>${u.name || 'N/A'}</b></td>
-                    <td>${u.mobile || 'N/A'}</td>
-                    <td>${u.email || 'N/A'}</td>
-                    <td><span class="status-badge ${statusClass}">${status}</span></td>
-                    <td>
-                        <button class="${btnClass}" onclick="toggleBlockUser(${i})">${btnText}</button>
-                        <button class="del-btn" onclick="deleteUser(${i})">Delete</button>
-                    </td>
-                </tr>`;
-            }).join('');
+    async function loadAllData() {
+        try {
+        const previousUsers = portalUsers.slice();
+        // Bring records from this browser's older localStorage into the shared server DB once.
+        const legacyUsers = JSON.parse(localStorage.getItem("mastermindUsers") || "[]");
+        for (const oldUser of legacyUsers) {
+            const importResponse = await fetch("/api/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(oldUser) });
+            if (importResponse.ok) {
+                const imported = await importResponse.json();
+                if (oldUser.status === "Blocked") await fetch(`/api/users/${imported.user.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "Blocked" }) });
+            } else if (importResponse.status !== 409) {
+                throw new Error("Legacy user data could not be moved to the server.");
+            }
         }
+        const categories = ["cscApplications", "bankingApplications", "gstApplications", "travelApplications", "instantPrintQueue", "userIssuedDocs"];
+        for (const category of categories) {
+            const oldRows = JSON.parse(localStorage.getItem(category) || "[]");
+            const migratedRows = [];
+            for (const oldRow of oldRows) {
+                if (oldRow.id) { migratedRows.push(oldRow); continue; }
+                const saveResponse = await fetch("/api/records", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category, payload: oldRow }) });
+                const saved = await saveResponse.json();
+                if (!saveResponse.ok) throw new Error(saved.detail || "Legacy application could not be moved to the server.");
+                migratedRows.push(saved.record);
+            }
+            if (oldRows.length) localStorage.setItem(category, JSON.stringify(migratedRows));
+        }
+        const [userResponse, ...recordResponses] = await Promise.all([
+            fetch("/api/users"),
+            ...["cscApplications", "bankingApplications", "gstApplications", "travelApplications", "instantPrintQueue", "userIssuedDocs"].map(key => fetch(`/api/records?category=${encodeURIComponent(key)}`))
+        ]);
+        if (userResponse.status === 401 || userResponse.status === 403 || recordResponses.some(response => response.status === 401 || response.status === 403)) {
+            await fetch("/api/logout", { method: "POST" });
+            localStorage.removeItem("isLoggedIn");
+            window.location.href = "login.html";
+            return;
+        }
+        if (!userResponse.ok || recordResponses.some(response => !response.ok)) throw new Error("Server data could not be loaded.");
+        const userResult = await userResponse.json();
+        const recordResults = await Promise.all(recordResponses.map(response => response.json()));
+        portalUsers = userResult.data || [];
+        ["cscApplications", "bankingApplications", "gstApplications", "travelApplications", "instantPrintQueue", "userIssuedDocs"].forEach((key, i) => { portalRecords[key] = recordResults[i].data || []; });
+        } catch (error) {
+            alert("Server data load nahi hua: " + error.message);
+            return;
+        }
+        const newUsers = registeredUsersLoaded ? portalUsers.filter(user => !previousUsers.some(oldUser => oldUser.id === user.id)) : [];
+        renderRegisteredUsers();
+        if (newUsers.length) showNewSignupNotice(newUsers);
+        registeredUsersLoaded = true;
 
         loadTableData("cscApplications", "cscTableBody");
         loadTableData("bankingApplications", "bankingTableBody");
@@ -216,27 +256,71 @@
         loadCompletedData();
     }
 
-    function toggleBlockUser(index) {
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        if (users[index]) {
-            users[index].status = users[index].status === "Blocked" ? "Active" : "Blocked";
-            localStorage.setItem("mastermindUsers", JSON.stringify(users));
-            loadAllData();
+    function renderRegisteredUsers() {
+        const userBody = document.getElementById("userTableBody");
+        if (!portalUsers.length) {
+            userBody.innerHTML = `<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>`;
+            return;
+        }
+        userBody.innerHTML = portalUsers.map((user, index) => {
+            const status = user.status || "Active";
+            const blocked = status === "Blocked";
+            return `<tr>
+                <td>${index + 1}</td><td><b>${user.name || 'N/A'}</b></td>
+                <td>${user.mobile || 'N/A'}</td><td>${user.email || 'N/A'}</td>
+                <td><span class="status-badge ${blocked ? 'status-blocked' : 'status-active'}">${status}</span></td>
+                <td><button class="${blocked ? 'unblock-btn' : 'block-btn'}" onclick="toggleBlockUser(${user.id})">${blocked ? 'Unblock' : 'Block'}</button>
+                <button class="del-btn" onclick="deleteUser(${user.id})">Delete</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function showNewSignupNotice(users) {
+        const notice = document.getElementById("newSignupNotice");
+        const names = users.map(user => `${user.name || "New user"} (${user.mobile})`).join(", ");
+        notice.textContent = `🔔 Naya signup: ${names}`;
+        notice.hidden = false;
+        window.clearTimeout(showNewSignupNotice.timeoutId);
+        showNewSignupNotice.timeoutId = window.setTimeout(() => { notice.hidden = true; }, 12000);
+    }
+
+    async function refreshRegisteredUsers() {
+        if (document.visibilityState !== "visible") return;
+        try {
+            const response = await fetch("/api/users");
+            const result = await response.json();
+            if (response.status === 401 || response.status === 403) { window.location.href = "login.html"; return; }
+            if (!response.ok) return;
+            const previousUsers = portalUsers;
+            portalUsers = result.data || [];
+            const newUsers = registeredUsersLoaded ? portalUsers.filter(user => !previousUsers.some(oldUser => oldUser.id === user.id)) : [];
+            renderRegisteredUsers();
+            if (newUsers.length) showNewSignupNotice(newUsers);
+            registeredUsersLoaded = true;
+        } catch (error) {
+            console.error("Registered-user refresh failed", error);
         }
     }
 
-    function deleteUser(index) {
+    async function toggleBlockUser(userId) {
+        const user = portalUsers.find(item => item.id === userId);
+        if (!user) return;
+        const response = await fetch(`/api/users/${userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: user.status === "Blocked" ? "Active" : "Blocked" }) });
+        if (!response.ok) { alert("User status update nahi hua."); return; }
+        await loadAllData();
+    }
+
+    async function deleteUser(userId) {
         if (confirm("Kya aap is registered user ko delete karna chahte hain?")) {
-            let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-            users.splice(index, 1);
-            localStorage.setItem("mastermindUsers", JSON.stringify(users));
-            loadAllData();
+            const response = await fetch(`/api/users/${userId}`, { method: "DELETE" });
+            if (!response.ok) { alert("User delete nahi hua."); return; }
+            await loadAllData();
         }
     }
 
     function loadTableData(storageKey, tbodyId) {
-        let rawData = JSON.parse(localStorage.getItem(storageKey)) || [];
-        let pendingData = rawData.map((item, index) => ({...item, originalIndex: index})).filter(item => item.status !== "Completed");
+        let rawData = portalRecords[storageKey] || [];
+        let pendingData = rawData.filter(item => item.status !== "Completed");
         let tbody = document.getElementById(tbodyId);
         
         if (pendingData.length === 0) { 
@@ -251,22 +335,19 @@
                 <td>${item.sender || 'N/A'}</td>
                 <td><span class="status-badge" style="background:#fff3cd; color:#856404;">${item.status || "Pending"}</span></td>
                 <td>
-                    <button class="complete-btn" onclick="markAsCompleted('${storageKey}', ${item.originalIndex})">Complete</button>
-                    <button class="view-btn" onclick="showDetails('${storageKey}', ${item.originalIndex})">View</button>
-                    <button class="del-btn" onclick="deleteSingleItem('${storageKey}', ${item.originalIndex})">Delete</button>
+                    <button class="complete-btn" onclick="markAsCompleted('${storageKey}', ${item.id})">Complete</button>
+                    <button class="view-btn" onclick="showDetails('${storageKey}', ${item.id})">View</button>
+                    <button class="del-btn" onclick="deleteSingleItem('${storageKey}', ${item.id})">Delete</button>
                 </td>
             </tr>`;
         }).join('');
     }
 
-    function markAsCompleted(storageKey, index) {
+    async function markAsCompleted(storageKey, recordId) {
         if(confirm("Kya aap is application ko 'Completed' mark karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-            if(data[index]) {
-                data[index].status = "Completed";
-                localStorage.setItem(storageKey, JSON.stringify(data));
-                loadAllData();
-            }
+            const response = await fetch(`/api/records/${recordId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "Completed" }) });
+            if (!response.ok) { alert("Application update nahi hua."); return; }
+            await loadAllData();
         }
     }
 
@@ -365,9 +446,8 @@
         return allFiles;
     }
 
-    function showDetails(storageKey, index) {
-        let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-        let item = data[index];
+    function showDetails(storageKey, recordId) {
+        let item = (portalRecords[storageKey] || []).find(row => row.id === recordId);
         if(!item) return;
 
         let senderMobile = "";
@@ -443,6 +523,9 @@
                     date: new Date().toLocaleDateString()
                 };
 
+                const savedRecord = await savePortalRecord("userIssuedDocs", docData);
+                docData.id = savedRecord.id;
+
                 let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
                 issuedList.push(docData);
                 localStorage.setItem("userIssuedDocs", JSON.stringify(issuedList));
@@ -459,17 +542,16 @@
         }
     }
 
-    function deleteSingleItem(storageKey, index) {
+    async function deleteSingleItem(storageKey, recordId) {
         if (confirm("Kya aap is record ko delete karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-            data.splice(index, 1);
-            localStorage.setItem(storageKey, JSON.stringify(data));
-            loadAllData();
+            const response = await fetch(`/api/records/${recordId}`, { method: "DELETE" });
+            if (!response.ok) { alert("Record aur file delete nahi hue."); return; }
+            await loadAllData();
         }
     }
 
     function loadInstantPrintData() {
-        let rawData = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
+        let rawData = portalRecords.instantPrintQueue || [];
         let tbody = document.getElementById("instantTableBody");
 
         if (rawData.length === 0) {
@@ -488,24 +570,26 @@
                 <td>📄 ${filesCount} Page(s)</td>
                 <td style="text-align: left; font-size: 12px;">${item.description || 'Quick Upload'}</td>
                 <td>
-                    <button class="complete-btn" onclick="openEditorPage(${index})">⚡ Edit & Print</button>
-                    <button class="del-btn" onclick="deleteInstantItem(${index})">Delete</button>
+                    <button class="complete-btn" onclick="openEditorPage(${item.id})">⚡ Edit & Print</button>
+                    <button class="del-btn" onclick="deleteInstantItem(${item.id})">Delete</button>
                 </td>
             </tr>`;
         }).join('');
     }
 
-    function openEditorPage(index) {
-        localStorage.setItem("activeInstantIndex", index);
+    function openEditorPage(recordId) {
+        const item = (portalRecords.instantPrintQueue || []).find(row => row.id === recordId);
+        if (!item) return;
+        localStorage.setItem("instantPrintQueue", JSON.stringify([item]));
+        localStorage.setItem("activeInstantIndex", "0");
         window.location.href = "QR C.html";
     }
 
-    function deleteInstantItem(index) {
+    async function deleteInstantItem(recordId) {
         if(confirm("Kya aap is record ko delete karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-            data.splice(index, 1);
-            localStorage.setItem("instantPrintQueue", JSON.stringify(data));
-            loadInstantPrintData();
+            const response = await fetch(`/api/records/${recordId}`, { method: "DELETE" });
+            if (!response.ok) { alert("Record aur files delete nahi hue."); return; }
+            await loadAllData();
         }
     }
 
@@ -520,10 +604,10 @@
         let allCompleted = [];
 
         categories.forEach(cat => {
-            let data = JSON.parse(localStorage.getItem(cat.key)) || [];
+            let data = portalRecords[cat.key] || [];
             data.forEach((item, index) => { 
                 if (item.status === "Completed") {
-                    allCompleted.push({...item, category: cat.name, storageKey: cat.key, originalIndex: index}); 
+                    allCompleted.push({...item, category: cat.name, storageKey: cat.key});
                 }
             });
         });
@@ -541,8 +625,8 @@
                 <td>${item.sender || 'N/A'}</td>
                 <td><span class="status-badge" style="background:#d1e7dd; color:#0f5132;">Completed</span></td>
                 <td>
-                    <button class="view-btn" onclick="showDetails('${item.storageKey}', ${item.originalIndex})">View</button>
-                    <button class="del-btn" onclick="deleteSingleItem('${item.storageKey}', ${item.originalIndex})">Delete</button>
+                    <button class="view-btn" onclick="showDetails('${item.storageKey}', ${item.id})">View</button>
+                    <button class="del-btn" onclick="deleteSingleItem('${item.storageKey}', ${item.id})">Delete</button>
                 </td>
             </tr>`;
         }).join('');
@@ -550,8 +634,12 @@
 
     function closeModal(id) { document.getElementById(id).style.display = "none"; }
 
-    window.onload = loadAllData;
+    window.onload = async function() {
+        await loadAllData();
+        window.setInterval(refreshRegisteredUsers, 10000);
+    };
 </script>
+<script src="portal-api.js"></script>
 
 </body>
 </html>

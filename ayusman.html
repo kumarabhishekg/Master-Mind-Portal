@@ -136,7 +136,7 @@
         formData.append("description", desc || "");
 
         try {
-            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+            let response = await fetch("/api/upload", {
                 method: "POST",
                 body: formData
             });
@@ -197,6 +197,8 @@
 
             let existingApplications = JSON.parse(localStorage.getItem("cscApplications")) || [];
             existingApplications.push(applicationData);
+            const savedRecord = await savePortalRecord("cscApplications", applicationData);
+            applicationData.id = savedRecord.id;
             localStorage.setItem("cscApplications", JSON.stringify(existingApplications));
 
             alert("Ayushman Card Application Successfully Submitted (Fee: ₹100)!");
@@ -211,5 +213,6 @@
     }
 </script>
 
+<script src="portal-api.js"></script>
 </body>
 </html>

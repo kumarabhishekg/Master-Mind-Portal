@@ -172,7 +172,7 @@
         }
     };
 
-    function submitWaitlist(event) {
+    async function submitWaitlist(event) {
         event.preventDefault();
         let name = document.getElementById("userName").value.trim();
         let mobile = document.getElementById("userMobile").value.trim();
@@ -199,6 +199,8 @@
         try {
             let existingApplications = JSON.parse(localStorage.getItem("gstApplications")) || [];
             existingApplications.push(applicationData);
+            const savedRecord = await savePortalRecord("gstApplications", applicationData);
+            applicationData.id = savedRecord.id;
             localStorage.setItem("gstApplications", JSON.stringify(existingApplications));
             alert("✅ Dhanyawad! Aapki request note kar li gayi hai. Hum jald hi aapse sampark karenge.");
             document.getElementById("serviceNeeded").value = "";
@@ -209,5 +211,6 @@
     }
 </script>
 
+<script src="portal-api.js"></script>
 </body>
 </html>

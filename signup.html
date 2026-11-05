@@ -88,7 +88,7 @@
     }
     window.onload = function() { generateCaptcha(); };
 
-    function validateSignup(event) {
+    async function validateSignup(event) {
         event.preventDefault();
         var fullname = document.getElementById("fullname").value;
         var mobile = document.getElementById("mobile").value;
@@ -113,19 +113,20 @@
             return false;
         }
 
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        
-        let existingUser = users.find(u => u.mobile === mobile);
-        if(existingUser) {
-            alert("Yeh mobile number pehle se registered hai!");
-            return false;
+        try {
+            const response = await fetch("/api/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: fullname.trim(), mobile: mobile.trim(), email: email.trim(), password })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail || result.message || "Registration failed.");
+            alert("Registration Successful! Ab aap login kar sakte hain.");
+            window.location.href = "login.html";
+        } catch (error) {
+            alert(error.message || "Server se connect nahi ho paya. Dobara try karein.");
         }
-
-        users.push({ name: fullname, mobile: mobile, email: email, password: password, status: "Active" });
-        localStorage.setItem("mastermindUsers", JSON.stringify(users));
-
-        alert("Registration Successful! Ab aap login kar sakte hain.");
-        window.location.href = "login.html";
+        return false;
     }
 </script>
 </body>
