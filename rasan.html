@@ -273,7 +273,7 @@
                     service_name: applicationData.serviceName,
                     customer_name: applicantName,
                     description: applicationData.description,
-                    file_urls: [appPhotoUrl, passbookUrl].filter(Boolean)
+                    file_urls: [appPhotoUrl, passbookUrl].concat(extraDocsArr).filter(Boolean)
                 })
             });
             const saveResult = await saveResponse.json();
