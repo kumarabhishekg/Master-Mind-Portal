@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
-from database import engine, SessionLocal, Base, Application, User, IssuedDocument
+from database import engine, SessionLocal, Base, Application, User, IssuedDocument, PrintQueue
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -226,7 +226,55 @@ def get_all_applications(_: User = Depends(admin_user), db: Session = Depends(ge
             "mobile":a.mobile,"description":a.description,"file_url":a.file_url,"unique_id":a.unique_id,
             "status":a.status} for a in apps]}
 
-@app.post("/api/upload")
+
+
+class PrintQueueCreate(BaseModel):
+    customer_name: str = Field(min_length=1, max_length=100)
+    print_type: str = Field(min_length=1, max_length=40)
+    description: str = Field(default="", max_length=1000)
+    application_ids: list[int] = Field(min_length=1, max_length=20)
+
+@app.post("/api/print-queue")
+def create_print_queue(data: PrintQueueCreate, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    apps = db.query(Application).filter(Application.id.in_(data.application_ids)).all()
+    if len(apps) != len(set(data.application_ids)) or any(a.mobile != user.mobile for a in apps):
+        raise HTTPException(400, "Invalid uploaded file selection")
+    item = PrintQueue(owner_mobile=user.mobile, customer_name=data.customer_name.strip(),
+        print_type=data.print_type, description=data.description.strip(),
+        application_ids=",".join(str(a.id) for a in apps), status="Pending",
+        created_at=time.strftime("%Y-%m-%d %H:%M:%S"))
+    db.add(item); db.commit(); db.refresh(item)
+    return {"status":"success","data":{"id":item.id}}
+
+def serialize_print_queue(item: PrintQueue, db: Session):
+    ids = [int(x) for x in item.application_ids.split(",") if x.isdigit()]
+    apps = db.query(Application).filter(Application.id.in_(ids)).all() if ids else []
+    files = [{"id":a.id,"name":Path(a.file_url).name,"url":a.file_url,"unique_id":a.unique_id}
+             for a in apps]
+    return {"id":item.id,"customer_name":item.customer_name,"print_type":item.print_type,
+        "description":item.description,"status":item.status,"created_at":item.created_at,"files":files}
+
+@app.get("/api/print-queue")
+def list_print_queue(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    query = db.query(PrintQueue)
+    if user.role != "admin": query = query.filter(PrintQueue.owner_mobile == user.mobile)
+    items = query.order_by(PrintQueue.id.desc()).all()
+    return {"status":"success","data":[serialize_print_queue(x, db) for x in items]}
+
+@app.get("/api/print-queue/{queue_id}")
+def get_print_queue(queue_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    item = db.query(PrintQueue).filter(PrintQueue.id == queue_id).first()
+    if not item: raise HTTPException(404, "Print request not found")
+    if user.role != "admin" and item.owner_mobile != user.mobile: raise HTTPException(403, "Access denied")
+    return {"status":"success","data":serialize_print_queue(item, db)}
+
+@app.delete("/api/print-queue/{queue_id}")
+def delete_print_queue(queue_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    item = db.query(PrintQueue).filter(PrintQueue.id == queue_id).first()
+    if not item: raise HTTPException(404, "Print request not found")
+    db.delete(item); db.commit()
+    return {"status":"success"}
+\n@app.post("/api/upload")
 async def upload_file(request: Request, file: UploadFile = File(...),
     customer_name: str = Form(""), service_name: str = Form(""), mobile: str = Form(""),
     description: str = Form(""), user: User = Depends(current_user), db: Session = Depends(get_db)):
