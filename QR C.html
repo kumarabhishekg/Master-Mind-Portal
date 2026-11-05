@@ -278,39 +278,24 @@
     }
 
     window.onload = async function() {
-        let activeIndex = localStorage.getItem("activeInstantIndex");
-        let queue = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-
-        if (activeIndex === null && queue.length > 0) {
-            activeIndex = queue.length - 1;
+        const queueId = new URLSearchParams(window.location.search).get("id");
+        if (!queueId || !/^[0-9]+$/.test(queueId)) {
+            document.getElementById("documentTableBody").innerHTML = `<tr><td colspan="4" style="color:#dc3545;padding:20px;">Valid print request ID nahi mila. Admin panel se request open karein.</td></tr>`;
+            return;
         }
-
-        if (activeIndex !== null && queue[activeIndex]) {
-            let item = queue[activeIndex];
-            currentFilesList = [];
-
-            let namesList = item.fileNamesList || [];
-            
-            // Server URL support for frontImg, backImg, and extraDocs
-            if (item.frontImg) {
-                currentFilesList.push(normalizeFileObject(namesList[0] || "Front_Document", item.frontImg, 0));
-            }
-            if (item.backImg) {
-                currentFilesList.push(normalizeFileObject(namesList[1] || "Back_Document", item.backImg, 1));
-            }
-            if (item.extraDocs && Array.isArray(item.extraDocs)) {
-                item.extraDocs.forEach((doc, idx) => {
-                    currentFilesList.push(normalizeFileObject(namesList[idx + 2] || `Document_${idx + 3}`, doc, idx + 2));
-                });
-            }
-
+        try {
+            const response = await fetch("/api/print-queue/" + encodeURIComponent(queueId), {credentials:"same-origin"});
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail || "Request load nahi hui");
+            const item = result.data;
+            currentFilesList = (item.files || []).map((file, index) =>
+                normalizeFileObject(file.name || ("Document_" + (index + 1)), file.url, index)
+            );
             renderDocumentTable();
-
-            if (currentFilesList.length > 0) {
-                viewFileInPreview(0, true);
-            }
-        } else {
-            document.getElementById("documentTableBody").innerHTML = `<tr><td colspan="4" style="color: #dc3545; padding: 20px;">Koi active document nahi mila! Upload page ya Admin Panel se file bhejein.</td></tr>`;
+            if (currentFilesList.length > 0) viewFileInPreview(0, true);
+        } catch (error) {
+            document.getElementById("documentTableBody").innerHTML =
+                `<tr><td colspan="4" style="color:#dc3545;padding:20px;">Print request load nahi hui: ${error.message}</td></tr>`;
         }
     };
 
