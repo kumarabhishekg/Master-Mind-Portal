@@ -403,10 +403,15 @@ def update_record(record_id: int, request: RecordStatusUpdate, db: Session = Dep
 
 
 @app.delete("/api/records/{record_id}")
-def delete_record(record_id: int, db: Session = Depends(get_db), _admin: dict = Depends(require_admin)):
+def delete_record(record_id: int, request: Request, db: Session = Depends(get_db)):
     row = db.query(PortalRecord).filter(PortalRecord.id == record_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Record not found.")
+    principal = get_principal(request)
+    if principal.get("role") != "admin":
+        payload = json.loads(row.payload)
+        if row.category != "userIssuedDocs" or payload.get("targetMobile") != principal.get("mobile"):
+            raise HTTPException(status_code=403, detail="You cannot delete this record.")
     try:
         delete_record_files(row, db)
         db.delete(row)
