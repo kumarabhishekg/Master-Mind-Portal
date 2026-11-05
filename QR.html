@@ -115,10 +115,10 @@
             let xhr = new XMLHttpRequest();
             let formData = new FormData();
             formData.append("file", file);
-                formData.append("mobile", localStorage.getItem("loggedInUserMobile") || "Not Provided");
+            const mobile = localStorage.getItem("loggedInUserMobile") || "Not Provided";
             formData.append("customer_name", customerName);
             formData.append("service_name", `Quick Upload (${printType})`);
-            formData.append("mobile", "Not Provided");
+            formData.append("mobile", mobile);
             formData.append("description", `Print Type: ${printType}`);
 
             xhr.upload.onprogress = function(event) {
@@ -204,10 +204,9 @@
                 });
 
                 if (result && result.status === "success") {
-                    let cleanUrl = "/storage/" + result.file_url.split("/storage/").pop();
                     fileMetaList.push({
                         name: file.name,
-                        url: cleanUrl,
+                        url: result.file_url,
                         unique_id: result.unique_id
                     });
                 }
@@ -228,7 +227,7 @@
                 serviceName: `Quick Upload (${printType})`,
                 sender: `${name} (Server Storage)`,
                 aadhaarName: name,
-                mobile: "Not Provided",
+                mobile: localStorage.getItem("loggedInUserMobile") || "Not Provided",
                 description: `Print Type: ${printType} | Files: ${fileNames}`,
                 frontImg: fileMetaList[0] ? fileMetaList[0].url : null,
                 backImg: fileMetaList[1] ? fileMetaList[1].url : null,
@@ -246,9 +245,12 @@
             } catch (e) {
                 localStorage.removeItem("instantPrintQueue");
                 localStorage.setItem("instantPrintQueue", JSON.stringify([applicationData]));
+                alert(`File upload ho gayi, lekin server queue save nahi hui: ${e.message}. Admin dashboard isi browser se kholkar local request sync karein.`);
+                submitBtn.disabled = false;
+                return;
             }
 
-            alert(`✅ ${fileMetaList.length} files successfully Python Server par upload ho gayi hain!`);
+            alert(`✅ ${fileMetaList.length} files successfully Python Server par upload ho gayi hain!`)
             
             let isLoggedIn = localStorage.getItem("isLoggedIn");
             if (isLoggedIn === "true") {
