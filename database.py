@@ -48,3 +48,15 @@ class IssuedDocument(Base):
     file_name = Column(String, nullable=False)
     file_url = Column(String, nullable=False)
     created_at = Column(String, nullable=False)
+
+
+class PrintQueue(Base):
+    __tablename__ = "print_queue"
+    id = Column(Integer, primary_key=True, index=True)
+    owner_mobile = Column(String, index=True, nullable=False)
+    customer_name = Column(String, nullable=False)
+    print_type = Column(String, nullable=False)
+    description = Column(String, nullable=False, default="")
+    application_ids = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="Pending")
+    created_at = Column(String, nullable=False)
