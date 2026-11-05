@@ -185,7 +185,7 @@ async def upload_file(request: Request, file: UploadFile = File(...),
         valid = (suffix == ".pdf" and signature.startswith(b"%PDF-")) or (suffix in {".jpg",".jpeg"} and signature.startswith(b"\xff\xd8\xff")) or (suffix == ".png" and signature.startswith(b"\x89PNG\r\n\x1a\n"))
         if not valid: raise HTTPException(415, "File content does not match its extension")
         record = Application(customer_name=(customer_name or user.name)[:100],
-            service_name=(service_name or "Upload")[:100], mobile=(mobile or user.mobile)[:10],
+            service_name=(service_name or "Upload")[:100], mobile=user.mobile,
             description=description[:1000], file_url=f"/api/files/{unique_id}", unique_id=unique_id)
         db.add(record); db.commit()
         return {"status":"success","unique_id":unique_id,"file_url":record.file_url}
