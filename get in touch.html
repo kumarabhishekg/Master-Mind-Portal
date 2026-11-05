@@ -228,12 +228,13 @@
 
         try {
             const names = [];
+            const uploadedUrls = [];
             for (let i = 0; i < filesList.length; i++) {
                 names.push(filesList[i].name);
-                await uploadFileToServer(filesList[i], applicantName, "Get In Touch", mobile, "User Upload " + (i + 1));
+                uploadedUrls.push(await uploadFileToServer(filesList[i], applicantName, "Get In Touch", mobile, "User Upload " + (i + 1)));
             }
             const serviceDetails = ("Get In Touch: " + userDesc + (names.length ? " | Files: " + names.join(", ") : " | No File")).slice(0,120);
-            const response = await fetch("/api/inquiries", {method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({service:serviceDetails})});
+            const response = await fetch("/api/service-requests", {method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({service_name:"Get In Touch (Fee: 100)", customer_name:applicantName, description:serviceDetails, file_urls:uploadedUrls})});
             const result = await response.json();
             if (!response.ok) throw new Error(result.detail || "Application save failed");
             alert("Aapki request database mein submit ho gayi hai.");
