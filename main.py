@@ -259,7 +259,7 @@ def create_print_queue(data: PrintQueueCreate, user: User = Depends(current_user
 def serialize_print_queue(item: PrintQueue, db: Session):
     ids = [int(x) for x in item.application_ids.split(",") if x.isdigit()]
     apps = db.query(Application).filter(Application.id.in_(ids)).all() if ids else []
-    files = [{"id":a.id,"name":Path(a.file_url).name,"url":a.file_url,"unique_id":a.unique_id}
+    files = [{"id":a.id,"name":(list(UPLOAD_DIR.glob(a.unique_id + ".*"))[0].name if list(UPLOAD_DIR.glob(a.unique_id + ".*")) else Path(a.file_url).name),"url":a.file_url,"unique_id":a.unique_id}
              for a in apps]
     return {"id":item.id,"customer_name":item.customer_name,"print_type":item.print_type,
         "description":item.description,"status":item.status,"created_at":item.created_at,"files":files}
