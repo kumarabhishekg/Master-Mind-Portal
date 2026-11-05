@@ -338,7 +338,7 @@
                 localStorage.removeItem("loggedInUserMobile");
                 localStorage.removeItem("loggedInUserName");
                 alert("Logged out successfully!");
-                window.location.href = "HOME.html";
+                fetch("/api/logout", { method: "POST" }).finally(() => { window.location.href = "HOME.html"; });
             };
         } else {
             window.location.href = "login.html";
@@ -347,12 +347,18 @@
         loadIssuedDocuments();
     };
 
-    function loadIssuedDocuments() {
-        let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
+    async function loadIssuedDocuments() {
         let container = document.getElementById("issuedDocsList");
-
-        // Sirf wahi documents filter karein jo ishi logged-in user ke mobile ke liye bheje gaye hain
-        let myDocs = issuedList.filter(doc => doc.targetMobile === loggedInMobile);
+        let myDocs = [];
+        try {
+            const response = await fetch("/api/records?category=userIssuedDocs");
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail || "Could not load documents.");
+            myDocs = (result.data || []).filter(doc => doc.targetMobile === loggedInMobile);
+        } catch (error) {
+            container.innerHTML = `<p style="color:#b91c1c; text-align:center; padding:15px;">Documents server se load nahi hue. Dobara refresh karein.</p>`;
+            return;
+        }
 
         if(myDocs.length === 0) {
             container.innerHTML = `<p style="color: #777; text-align: center; padding: 15px;">Abhi tak aapke liye koi document nahi bheja gaya hai.</p>`;
@@ -360,9 +366,6 @@
         }
 
         container.innerHTML = myDocs.map((doc) => {
-            // Original index nikalna taaki delete karte waqt main array se sahi item remove ho
-            let realIndex = issuedList.findIndex(item => item === doc);
-
             return `
                 <div class="doc-card">
                     <div>
@@ -372,7 +375,7 @@
                     <div style="display: flex; gap: 5px;">
                         <button onclick='viewDocument(${JSON.stringify(doc)})' class="btn-action btn-view">View</button>
                         <a href="${doc.fileUrl}" download="${doc.fileName}" class="btn-action btn-download">Download</a>
-                        <button onclick="deleteIssuedDoc(${realIndex})" class="btn-action btn-delete">Delete</button>
+                        <button onclick="deleteIssuedDoc(${doc.id})" class="btn-action btn-delete">Delete</button>
                     </div>
                 </div>
             `;
@@ -399,15 +402,15 @@
         document.getElementById("viewModal").style.display = "none";
     }
 
-    function deleteIssuedDoc(realIndex) {
+    async function deleteIssuedDoc(recordId) {
         if(confirm("Kya aap is document ko delete karna chahte hain?")) {
-            let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
-            issuedList.splice(realIndex, 1);
-            localStorage.setItem("userIssuedDocs", JSON.stringify(issuedList));
-            loadIssuedDocuments();
+            const response = await fetch(`/api/records/${recordId}`, { method: "DELETE" });
+            if (!response.ok) { alert("Document delete nahi hua."); return; }
+            await loadIssuedDocuments();
         }
     }
 </script>
+<script src="portal-api.js"></script>
 
 </body>
 </html>

@@ -213,7 +213,7 @@
         formData.append("description", desc || "");
 
         try {
-            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+            let response = await fetch("/api/upload", {
                 method: "POST",
                 body: formData
             });
@@ -285,6 +285,8 @@
 
         try {
             existingApplications.push(applicationData);
+            const savedRecord = await savePortalRecord("bankingApplications", applicationData);
+            applicationData.id = savedRecord.id;
             localStorage.setItem("bankingApplications", JSON.stringify(existingApplications));
             alert("✅ Aapka message aur files safaltapurvak server par submit ho gaye hain (Fee: ₹100)!");
             window.location.href = "H login.html";
@@ -297,5 +299,6 @@
     }
 </script>
 
+<script src="portal-api.js"></script>
 </body>
 </html>

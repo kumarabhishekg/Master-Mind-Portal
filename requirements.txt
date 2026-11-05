@@ -4,3 +4,4 @@ python-multipart
 pydantic
 sqlalchemy
 pymysql
+psycopg2-binary

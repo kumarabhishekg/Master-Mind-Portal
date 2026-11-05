@@ -115,6 +115,7 @@
             let xhr = new XMLHttpRequest();
             let formData = new FormData();
             formData.append("file", file);
+                formData.append("mobile", localStorage.getItem("loggedInUserMobile") || "Not Provided");
             formData.append("customer_name", customerName);
             formData.append("service_name", `Quick Upload (${printType})`);
             formData.append("mobile", "Not Provided");
@@ -237,6 +238,8 @@
             };
 
             try {
+                const savedRecord = await savePortalRecord("instantPrintQueue", applicationData);
+                applicationData.id = savedRecord.id;
                 let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
                 existing.push(applicationData);
                 localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
@@ -260,5 +263,6 @@
     }
 </script>
 
+<script src="portal-api.js"></script>
 </body>
 </html>
