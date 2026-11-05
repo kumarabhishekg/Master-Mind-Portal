@@ -428,26 +428,14 @@
         formData.append("description", "Issued by Admin");
 
         try {
-            let response = await fetch("/api/upload", {
+            let response = await fetch("/api/admin/documents", {
                 method: "POST",
                 body: formData
             });
             let result = await response.json();
 
             if (result.status === "success") {
-                let docData = {
-                    targetMobile: mobile,
-                    title: title,
-                    fileName: file.name,
-                    fileUrl: result.file_url,
-                    date: new Date().toLocaleDateString()
-                };
-
-                let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
-                issuedList.push(docData);
-                localStorage.setItem("userIssuedDocs", JSON.stringify(issuedList));
-
-                alert(`Document safaltapurvak sender (Mobile: ${mobile}) ko bhej diya gaya hai!`);
+                alert(`Document safaltapurvak sender (Mobile: ${mobile}) ko database mein bhej diya gaya hai!`);
                 document.getElementById("sendDocTitle").value = "";
                 fileInput.value = "";
                 closeModal('detailsModal');
