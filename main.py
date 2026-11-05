@@ -205,6 +205,12 @@ def update_application(application_id: int, status: str, _: User = Depends(admin
 def delete_application(application_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
     record = db.query(ServiceRequest).filter(ServiceRequest.id == application_id).first()
     if not record: raise HTTPException(404, "Application not found")
+    ids = [int(x) for x in record.application_ids.split(",") if x.isdigit()]
+    uploaded = db.query(Application).filter(Application.id.in_(ids)).all() if ids else []
+    for item in uploaded:
+        for stored_file in UPLOAD_DIR.glob(item.unique_id + ".*"):
+            stored_file.unlink(missing_ok=True)
+        db.delete(item)
     db.delete(record)
     db.commit()
     return {"status": "success"}
