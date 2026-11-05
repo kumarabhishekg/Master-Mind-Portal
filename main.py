@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
-from database import engine, SessionLocal, Base, Application, User
+from database import engine, SessionLocal, Base, Application, User, IssuedDocument
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -140,6 +140,38 @@ def logout(response: Response):
     response.delete_cookie(COOKIE_NAME, path="/", secure=True, httponly=True, samesite="lax")
     response.headers["Cache-Control"] = "no-store"
     return {"status": "success"}
+
+@app.get("/api/documents")
+def list_my_documents(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    docs = db.query(IssuedDocument).filter(IssuedDocument.target_mobile == user.mobile).order_by(IssuedDocument.id.desc()).all()
+    return {"status":"success","data":[{"id":d.id,"title":d.title,"fileName":d.file_name,
+            "fileUrl":d.file_url,"date":d.created_at} for d in docs]}
+
+@app.post("/api/admin/documents")
+async def issue_document(mobile: str = Form(...), title: str = Form(...), file: UploadFile = File(...),
+                         _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    target_user = db.query(User).filter(User.mobile == mobile).first()
+    if not target_user: raise HTTPException(404, "Target user not found")
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS or file.content_type not in {"application/pdf","image/jpeg","image/png"}:
+        raise HTTPException(415, "Only PDF, JPG and PNG files are allowed")
+    unique_id = str(uuid.uuid4()); target = UPLOAD_DIR / (unique_id + suffix)
+    size = 0
+    try:
+        with target.open("wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_UPLOAD_BYTES: raise HTTPException(413, "File exceeds 10 MB limit")
+                out.write(chunk)
+        with target.open("rb") as check: signature = check.read(8)
+        valid = (suffix == ".pdf" and signature.startswith(b"%PDF-")) or (suffix in {".jpg",".jpeg"} and signature.startswith(b"\\xff\\xd8\\xff")) or (suffix == ".png" and signature.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+        if not valid: raise HTTPException(415, "File content does not match its extension")
+        doc = IssuedDocument(target_mobile=mobile, title=title[:120], file_name=Path(file.filename).name[:180],
+                             file_url=f"/api/files/{unique_id}", created_at=time.strftime("%Y-%m-%d"))
+        db.add(doc); db.commit()
+        return {"status":"success","data":{"id":doc.id,"fileUrl":doc.file_url}}
+    except Exception:
+        target.unlink(missing_ok=True); db.rollback(); raise
 
 @app.post("/api/auth/password-reset")
 def password_reset_disabled():
