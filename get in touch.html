@@ -197,32 +197,15 @@
     // Helper function to upload each file to FastAPI Server (`/api/upload`)
     async function uploadFileToServer(file, customerName, serviceName, mobile, desc) {
         if (!file) return "";
-        let formData = new FormData();
+        const formData = new FormData();
         formData.append("file", file);
         formData.append("customer_name", customerName || "Customer");
         formData.append("service_name", serviceName || "Get In Touch");
-        formData.append("mobile", mobile || "Not Provided");
         formData.append("description", desc || "");
-
-        try {
-            let response = await fetch("/api/upload", {
-                method: "POST",
-                body: formData
-            });
-            let result = await response.json();
-            if (result.status === "success") {
-                return result.file_url;
-            } else {
-                throw new Error(result.message || "Upload failed");
-            }
-        } catch (err) {
-            console.error("Server upload error, falling back to base64:", err);
-            return await new Promise((resolve) => {
-                let reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.readAsDataURL(file);
-            });
-        }
+        const response = await fetch("/api/upload", {method:"POST", credentials:"same-origin", body:formData});
+        const result = await response.json();
+        if (!response.ok || result.status !== "success") throw new Error(result.detail || "File upload failed");
+        return result.file_url;
     }
 
     async function submitContactForm(event) {
@@ -243,46 +226,21 @@
             return false;
         }
 
-        let senderInfo = currentSenderName + " (" + currentSenderMobile + ")";
-        let uploadedUrls = [];
-        let fileNamesList = [];
-
         try {
+            const names = [];
             for (let i = 0; i < filesList.length; i++) {
-                fileNamesList.push(filesList[i].name);
-                let serverUrl = await uploadFileToServer(filesList[i], applicantName, "Get In Touch", mobile, `User Upload ${i + 1}: ${filesList[i].name}`);
-                if (serverUrl) uploadedUrls.push(serverUrl);
+                names.push(filesList[i].name);
+                await uploadFileToServer(filesList[i], applicantName, "Get In Touch", mobile, "User Upload " + (i + 1));
             }
-        } catch (err) {
-            console.warn("File upload error:", err);
-        }
-
-        let fileInfoText = fileNamesList.length > 0 ? ` | Files: ${fileNamesList.join(", ")}` : " | No File";
-
-        let applicationData = {
-            serviceName: "Get In Touch (Fee: ₹100)",
-            sender: senderInfo,
-            aadhaarName: applicantName,
-            mobile: mobile,
-            description: userDesc + fileInfoText + " (Fee: ₹100)", 
-            frontImg: uploadedUrls[0] || null, 
-            backImg: uploadedUrls[1] || null,  
-            extraDocs: uploadedUrls.slice(2), 
-            fileNamesList: fileNamesList,
-            date: new Date().toLocaleDateString(),
-            status: "Pending"
-        };
-
-        let existingApplications = JSON.parse(localStorage.getItem("bankingApplications")) || [];
-
-        try {
-            existingApplications.push(applicationData);
-            localStorage.setItem("bankingApplications", JSON.stringify(existingApplications));
-            alert("✅ Aapka message aur files safaltapurvak server par submit ho gaye hain (Fee: ₹100)!");
+            const serviceDetails = ("Get In Touch: " + userDesc + (names.length ? " | Files: " + names.join(", ") : " | No File")).slice(0,120);
+            const response = await fetch("/api/inquiries", {method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({service:serviceDetails})});
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail || "Application save failed");
+            alert("Aapki request database mein submit ho gayi hai.");
             window.location.href = "H login.html";
-        } catch (storageError) {
-            alert("⚠️ Error saving application! Kripya check karein ki server chal raha hai.");
-            submitBtn.innerText = "🚀 Submit Request (₹100)";
+        } catch (err) {
+            alert("Request save nahi hui: " + err.message);
+            submitBtn.innerText = "Submit Request";
             submitBtn.disabled = false;
         }
         return false;
