@@ -157,6 +157,34 @@ def update_user_status(user_id: int, status: str, _: User = Depends(admin_user),
     user.status = status; db.commit()
     return {"status":"success"}
 
+@app.patch("/api/applications/{application_id}")
+def update_application(application_id: int, status: str, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    if status not in {"Pending", "In Progress", "Completed", "Rejected"}:
+        raise HTTPException(400, "Invalid application status")
+    record = db.query(Application).filter(Application.id == application_id).first()
+    if not record: raise HTTPException(404, "Application not found")
+    record.status = status
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/applications/{application_id}")
+def delete_application(application_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    record = db.query(Application).filter(Application.id == application_id).first()
+    if not record: raise HTTPException(404, "Application not found")
+    db.delete(record)
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id: int, actor: User = Depends(admin_user), db: Session = Depends(get_db)):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target: raise HTTPException(404, "User not found")
+    if target.id == actor.id: raise HTTPException(400, "You cannot delete your own admin account")
+    if target.role == "admin": raise HTTPException(403, "Deleting another administrator is disabled")
+    db.delete(target)
+    db.commit()
+    return {"status": "success"}
+
 @app.get("/api/applications")
 def get_all_applications(_: User = Depends(admin_user), db: Session = Depends(get_db)):
     apps = db.query(Application).order_by(Application.id.desc()).all()
