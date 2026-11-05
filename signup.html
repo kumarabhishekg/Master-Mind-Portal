@@ -61,72 +61,10 @@
 </div>
 
 <script>
-    // --- F12 & Inspect Element Security Protection ---
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'F12' || e.keyCode === 123) {
-            e.preventDefault();
-            return false;
-        }
-        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
-            e.preventDefault();
-            return false;
-        }
-        if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
-            e.preventDefault();
-            return false;
-        }
-    });
-
-    let generatedCaptcha = "";
-    function generateCaptcha() {
-        const chars = "0123456789";
-        generatedCaptcha = "";
-        for (let i = 0; i < 6; i++) {
-            generatedCaptcha += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        document.getElementById("captchaDisplay").innerText = generatedCaptcha;
-    }
-    window.onload = function() { generateCaptcha(); };
-
-    function validateSignup(event) {
-        event.preventDefault();
-        var fullname = document.getElementById("fullname").value;
-        var mobile = document.getElementById("mobile").value;
-        var email = document.getElementById("email").value;
-        var password = document.getElementById("password").value;
-        var confirmPassword = document.getElementById("confirmPassword").value;
-        var userInputCaptcha = document.getElementById("captchaInput").value;
-
-        var mobilePattern = /^[0-9]{10}$/;
-        if (!mobilePattern.test(mobile)) {
-            alert("Kripya valid 10-digit ka mobile number daalein!");
-            return false;
-        }
-        if (password !== confirmPassword) {
-            alert("Password aur Confirm Password match nahi ho rahe hain!");
-            return false;
-        }
-        if (userInputCaptcha !== generatedCaptcha) {
-            alert("Galat Captcha code! Kripya dobara try karein.");
-            generateCaptcha();
-            document.getElementById("captchaInput").value = "";
-            return false;
-        }
-
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        
-        let existingUser = users.find(u => u.mobile === mobile);
-        if(existingUser) {
-            alert("Yeh mobile number pehle se registered hai!");
-            return false;
-        }
-
-        users.push({ name: fullname, mobile: mobile, email: email, password: password, status: "Active" });
-        localStorage.setItem("mastermindUsers", JSON.stringify(users));
-
-        alert("Registration Successful! Ab aap login kar sakte hain.");
-        window.location.href = "login.html";
-    }
+let generatedCaptcha="";
+function generateCaptcha(){const chars="0123456789";generatedCaptcha=Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("");document.getElementById("captchaDisplay").innerText=generatedCaptcha;}
+window.onload=generateCaptcha;
+async function validateSignup(event){event.preventDefault();const name=document.getElementById("fullname").value.trim();const mobile=document.getElementById("mobile").value.trim();const email=document.getElementById("email").value.trim();const password=document.getElementById("password").value;const confirmPassword=document.getElementById("confirmPassword").value;const captcha=document.getElementById("captchaInput").value.trim();if(!/^[0-9]{10}$/.test(mobile)){alert("Valid 10-digit mobile number daalein");return false;}if(password.length<10){alert("Password kam se kam 10 characters ka hona chahiye");return false;}if(password!==confirmPassword){alert("Password match nahi ho rahe");return false;}if(captcha!==generatedCaptcha){alert("Galat captcha");generateCaptcha();return false;}try{const response=await fetch("/api/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,mobile,email,password})});const result=await response.json();if(!response.ok)throw new Error(result.detail||"Registration failed");alert("Registration successful. Ab login karein.");window.location.href="login.html";}catch(error){alert(error.message||"Server connection error");generateCaptcha();document.getElementById("captchaInput").value="";}return false;}
 </script>
 </body>
 </html>
