@@ -113,30 +113,26 @@
     let currentSenderMobile = "";
     let currentSenderName = "";
 
-    window.onload = function() {
-        const isLoggedin = localStorage.getItem("isLoggedIn");
-        currentSenderMobile = localStorage.getItem("loggedInUserMobile");
-        currentSenderName = localStorage.getItem("loggedInUserName");
+    window.onload = async function() {
         const authLink = document.getElementById("authLink");
-
-        if (isLoggedin === "true" && currentSenderMobile) {
-            let nameSpan = document.getElementById("displaySenderName");
-            if(nameSpan) nameSpan.innerText = `${currentSenderName} (${currentSenderMobile})`;
-            
-            if(authLink) {
+        try {
+            const response = await fetch("/api/auth/me", {credentials:"same-origin"});
+            if (!response.ok) throw new Error("Login required");
+            const data = await response.json();
+            currentSenderMobile = data.user.mobile;
+            currentSenderName = data.user.name;
+            const display = document.getElementById("displaySenderName");
+            if (display) display.innerText = `${currentSenderName} (${currentSenderMobile})`;
+            if (authLink) {
                 authLink.innerText = "LOGOUT";
                 authLink.href = "#";
-                authLink.onclick = function(e) {
+                authLink.onclick = async function(e) {
                     e.preventDefault();
-                    localStorage.removeItem("isLoggedIn");
-                    localStorage.removeItem("loggedInUserName");
-                    localStorage.removeItem("loggedInUserMobile");
-                    alert("Logged out successfully!");
-                    window.location.href = "HOME.html";
+                    await fetch("/api/auth/logout", {method:"POST", credentials:"same-origin"});
+                    window.location.href = "login.html";
                 };
             }
-        } else {
-            alert("Form bharne ke liye pehle Login karna zaroori hai!");
+        } catch (error) {
             window.location.href = "login.html";
         }
     };
@@ -152,7 +148,7 @@
         formData.append("description", desc || "");
 
         try {
-            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+            let response = await fetch("/api/upload", {
                 method: "POST",
                 body: formData
             });
@@ -226,9 +222,7 @@
                 status: "Pending"
             };
 
-            let existingApplications = JSON.parse(localStorage.getItem("cscApplications")) || [];
-            existingApplications.push(applicationData);
-            localStorage.setItem("cscApplications", JSON.stringify(existingApplications));
+            // Application is already stored by the authenticated /api/upload endpoint.
 
             alert("Disability Card Application Successfully Submitted (Fee: ₹100)!");
             window.location.href = "H login.html";
