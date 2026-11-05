@@ -298,7 +298,7 @@ async def upload_file(request: Request, file: UploadFile = File(...),
             service_name=(service_name or "Upload")[:100], mobile=user.mobile,
             description=description[:1000], file_url=f"/api/files/{unique_id}", unique_id=unique_id)
         db.add(record); db.commit()
-        return {"status":"success","unique_id":unique_id,"file_url":record.file_url}
+        return {"status":"success","id":record.id,"unique_id":unique_id,"file_url":record.file_url}
     except Exception:
         target.unlink(missing_ok=True); db.rollback(); raise
 
