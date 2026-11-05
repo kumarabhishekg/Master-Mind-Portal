@@ -228,6 +228,16 @@ def get_all_applications(_: User = Depends(admin_user), db: Session = Depends(ge
 
 
 
+class InquiryCreate(BaseModel):
+    service: str = Field(min_length=1, max_length=120)
+
+@app.post("/api/inquiries")
+def create_inquiry(data: InquiryCreate, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    record = Application(customer_name=user.name, service_name="Coming Soon Inquiry", mobile=user.mobile,
+        description=("Requested service: " + data.service.strip())[:1000], status="Pending")
+    db.add(record); db.commit()
+    return {"status":"success"}
+
 class PrintQueueCreate(BaseModel):
     customer_name: str = Field(min_length=1, max_length=100)
     print_type: str = Field(min_length=1, max_length=40)
