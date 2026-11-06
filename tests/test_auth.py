@@ -1,4 +1,8 @@
 import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # CI uses an isolated SQLite database; production uses the configured external PostgreSQL URL.
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test_auth.db")
