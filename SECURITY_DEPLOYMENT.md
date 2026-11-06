@@ -40,3 +40,12 @@ The Render Blueprint is configured for the Free web-service plan. This is a demo
 - Before real customers use the portal, move to a paid persistent service and private persistent object storage, configure a durable managed database with backups, enable uploads only after verifying access controls, and test restore procedures.
 
 The free blueprint sets `UPLOADS_ENABLED=false` and uses SQLite only for temporary demonstrations. A restart or spin-down may reset the database.
+
+
+## Free Render preview mode
+
+The free Render web service has an ephemeral filesystem and sleeps after 15 minutes without traffic. Do not store SQLite data or customer documents on it. The free blueprint therefore requires an externally hosted PostgreSQL connection string via `DATABASE_URL`; startup deliberately fails if this is missing or points to SQLite. Configure the external database before deploying.
+
+Customer document upload, issued-document upload, and file download endpoints are disabled by `UPLOADS_ENABLED=false`. This is intentional: the current backend writes files to local disk, which is lost on Render free restarts/redeploys. Do not enable uploads until a private object-storage adapter (for example, a private Supabase Storage bucket with server-side authorization) is implemented and tested. Never use public buckets for Aadhaar/PAN or other identity documents.
+
+Supabase Free currently advertises 500 MB database, 1 GB storage, 5 GB egress and pauses projects after one week of inactivity. These are prototype limits, not a production backup/retention guarantee. Monitor quotas and keep independent backups.
