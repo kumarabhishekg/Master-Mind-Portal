@@ -11,7 +11,7 @@
 
 Official limits:
 - Render: https://render.com/docs/free
-- Neon: https://neon.com/docs/introduction/pro-plan
+- Neon: https://neon.com/docs/introduction/plans
 - Neon free quotas: https://neon.com/docs/introduction/plans
 
 ## Part A — Neon database बनाना
