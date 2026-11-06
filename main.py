@@ -127,7 +127,9 @@ def login(data: LoginInput, response: Response, db: Session = Depends(get_db)):
     if not user or user.status == "Blocked":
         raise HTTPException(401, "Invalid mobile number or password")
     valid, legacy = verify_password(data.password, user.password or "")
-    if not valid: raise HTTPException(401, "Invalid mobile number or password")    if legacy:
+    if not valid:
+        raise HTTPException(401, "Invalid mobile number or password")
+    if legacy:
         user.password = hash_password(data.password); db.commit()
     token = make_session(user)
     response.set_cookie(COOKIE_NAME, token, httponly=True, secure=True, samesite="lax",
@@ -256,7 +258,8 @@ class ServiceRequestCreate(BaseModel):
     form_data: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
     file_urls: list[str] = Field(default_factory=list)
 
-def save_service_request(data: ServiceRequestCreate, user: User, db: Session):    urls = list(dict.fromkeys(data.file_urls))
+def save_service_request(data: ServiceRequestCreate, user: User, db: Session):
+    urls = list(dict.fromkeys(data.file_urls))
     if len(urls) > 20: raise HTTPException(400, "Too many uploaded files")
     uploaded = db.query(Application).filter(Application.file_url.in_(urls), Application.mobile == user.mobile).all() if urls else []
     if len(uploaded) != len(urls): raise HTTPException(400, "One or more uploaded files are invalid")
@@ -387,5 +390,6 @@ def serve_files_and_pages(file_path: str, request: Request, db: Session = Depend
         return FileResponse(candidate)
     raise HTTPException(404, "Not found")
 
-if __name__ == "__main__":    import uvicorn
+if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
