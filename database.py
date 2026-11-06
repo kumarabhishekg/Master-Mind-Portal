@@ -3,6 +3,8 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, inspect, te
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mastermind.db")
+if os.getenv("REQUIRE_EXTERNAL_DATABASE", "false").lower() == "true" and (not DATABASE_URL or DATABASE_URL.startswith("sqlite")):
+    raise RuntimeError("Free hosting requires an external PostgreSQL DATABASE_URL; local SQLite is ephemeral and unsafe.")
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
