@@ -27,3 +27,16 @@ The example values in `.env.example` are placeholders and must never be used as 
 ## Local development
 
 Because the session cookie is Secure, test authentication through HTTPS. Do not disable Secure cookies in production to make plain-HTTP testing work.
+
+## Temporary free-hosting mode (testing only)
+
+The Render Blueprint is configured for the Free web-service plan. This is a demonstration environment, not production hosting.
+
+- The service sleeps after 15 minutes without traffic and can take about a minute to wake.
+- Its filesystem is ephemeral. The SQLite database and any local files can disappear on restart, redeploy, or spin-down. User accounts and service requests must be treated as disposable test data.
+- File uploads and admin document issuance are deliberately disabled when `UPLOADS_ENABLED=false`. Do not enable them on this plan: uploaded customer documents would be lost and must not be entrusted to ephemeral storage.
+- Do not collect Aadhaar, PAN, banking documents, or other real customer personal data on this deployment.
+- Render's free Postgres is not a permanent workaround: Render documents a 30-day expiry, no backups, and a 1 GB limit.
+- Before real customers use the portal, move to a paid persistent service and private persistent object storage, configure a durable managed database with backups, enable uploads only after verifying access controls, and test restore procedures.
+
+The free blueprint sets `UPLOADS_ENABLED=false` and uses SQLite only for temporary demonstrations. A restart or spin-down may reset the database.
