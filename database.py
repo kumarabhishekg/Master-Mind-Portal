@@ -2,7 +2,17 @@ import os
 from sqlalchemy import create_engine, Column, Integer, String, Text, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mastermind.db")
+def normalize_database_url(url: str) -> str:
+    # Neon/Render dashboards commonly provide postgres:// or postgresql:// URLs.
+    # This project installs psycopg v3, so select its SQLAlchemy dialect explicitly.
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
+DATABASE_URL = normalize_database_url(os.getenv("DATABASE_URL", "sqlite:///./mastermind.db"))
 if os.getenv("REQUIRE_EXTERNAL_DATABASE", "false").lower() == "true" and (not DATABASE_URL or DATABASE_URL.startswith("sqlite")):
     raise RuntimeError("Free hosting requires an external PostgreSQL DATABASE_URL; local SQLite is ephemeral and unsafe.")
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
