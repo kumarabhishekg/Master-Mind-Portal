@@ -12,7 +12,7 @@ os.environ.setdefault("REQUIRE_EXTERNAL_DATABASE", "false")
 import pytest
 from fastapi.testclient import TestClient
 
-from database import Base, engine, SessionLocal, User
+from database import Base, engine, SessionLocal, User, normalize_database_url
 from main import app, hash_password, provision_admin_from_environment
 
 
@@ -112,3 +112,10 @@ def test_document_upload_is_disabled_on_free_hosting(client):
         "file": ("sample.pdf", b"%PDF-1.4 test", "application/pdf")
     })
     assert response.status_code == 503
+
+
+
+def test_hosted_postgres_urls_select_psycopg_v3():
+    assert normalize_database_url("postgres://user:pass@host/db") == "postgresql+psycopg://user:pass@host/db"
+    assert normalize_database_url("postgresql://user:pass@host/db") == "postgresql+psycopg://user:pass@host/db"
+    assert normalize_database_url("sqlite:///./local.db") == "sqlite:///./local.db"
