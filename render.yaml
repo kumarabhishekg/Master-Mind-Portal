@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: master-mind-portal
+    runtime: python
+    plan: starter
+    region: singapore
+    branch: security/server-side-migration
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    autoDeploy: true
+    disk:
+      name: mastermind-private-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////var/data/mastermind.db
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: ADMIN_MOBILE
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: Portal Administrator
+      - key: ALLOWED_ORIGINS
+        value: ""
