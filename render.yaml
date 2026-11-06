@@ -13,9 +13,9 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///./mastermind.db
-      - key: UPLOAD_DIR
-        value: /tmp/mastermind-uploads
+        sync: false
+      - key: REQUIRE_EXTERNAL_DATABASE
+        value: "true"
       - key: UPLOADS_ENABLED
         value: "false"
       - key: ADMIN_MOBILE
