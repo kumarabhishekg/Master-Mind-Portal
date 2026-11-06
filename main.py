@@ -23,6 +23,11 @@ COOKIE_NAME = "__Host-mm_session"
 SESSION_SECRET = os.getenv("SESSION_SECRET", "")
 SESSION_SECONDS = 60 * 60 * 8
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+UPLOADS_ENABLED = os.getenv("UPLOADS_ENABLED", "true").lower() == "true"
+
+def require_uploads_enabled():
+    if not UPLOADS_ENABLED:
+        raise HTTPException(503, "Document uploads are disabled on temporary free hosting. Configure persistent private object storage before accepting customer documents.")
 ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
 
 def get_db():
@@ -150,6 +155,7 @@ def list_my_documents(user: User = Depends(current_user), db: Session = Depends(
 @app.post("/api/admin/documents")
 async def issue_document(mobile: str = Form(...), title: str = Form(...), file: UploadFile = File(...),
                          _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    require_uploads_enabled()
     target_user = db.query(User).filter(User.mobile == mobile).first()
     if not target_user: raise HTTPException(404, "Target user not found")
     suffix = Path(file.filename or "").suffix.lower()
