@@ -9,6 +9,12 @@ on:
       - main
       - security/server-side-migration
 
+env:
+  DATABASE_URL: sqlite:///./ci_test.db
+  SESSION_SECRET: ci-test-session-secret
+  UPLOADS_ENABLED: "false"
+  REQUIRE_EXTERNAL_DATABASE: "false"
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -18,7 +24,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install backend dependencies
-        run: python -m pip install -r requirements.txt
+        run: python -m pip install -r requirements-dev.txt
       - name: Check Python syntax
         run: python -m compileall -q main.py database.py
       - name: Check inline JavaScript syntax
@@ -40,3 +46,5 @@ jobs:
           PY
       - name: Import FastAPI application
         run: python -c "import main; assert main.app is not None; print('FastAPI app import OK')"
+      - name: Run authentication and access-control tests
+        run: pytest -q
