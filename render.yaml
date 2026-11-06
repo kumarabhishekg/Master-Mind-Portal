@@ -2,7 +2,7 @@ services:
   - type: web
     name: master-mind-portal
     runtime: python
-    plan: starter
+    plan: 0.5c-512mb
     region: singapore
     branch: security/server-side-migration
     buildCommand: pip install -r requirements.txt
