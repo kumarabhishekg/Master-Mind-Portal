@@ -5,3 +5,4 @@ pydantic[email]
 sqlalchemy
 pymysql
 psycopg[binary]
+pymongo[srv]>=4.11,<5

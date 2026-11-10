@@ -7,6 +7,10 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base, Application, User, IssuedDocument, PrintQueue, ServiceRequest
+from auth_store import (delete_user as delete_mongo_user, find_user_by_id,
+    find_user_by_mobile, init_mongo_users, list_users as list_mongo_users,
+    migrate_legacy_users, mongo_enabled, update_user as update_mongo_user,
+    users_collection)
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -47,6 +51,14 @@ def provision_admin_from_environment():
     if not mobile and not password: return
     if not re.fullmatch(r"[0-9]{10}", mobile) or len(password) < 14:
         raise RuntimeError("Set ADMIN_MOBILE to 10 digits and ADMIN_PASSWORD to at least 14 characters")
+    if mongo_enabled():
+        users_collection().update_one(
+            {"mobile": mobile},
+            {"$set": {"name": name, "mobile": mobile, "email": "",
+                      "password": hash_password(password), "status": "Active", "role": "admin"}},
+            upsert=True,
+        )
+        return
     db = SessionLocal()
     try:
         account = db.query(User).filter(User.mobile == mobile).first()
@@ -72,6 +84,14 @@ def verify_password(password: str, stored: str) -> tuple[bool, bool]:
     # One-time legacy plaintext compatibility; successful login upgrades the hash.
     return hmac.compare_digest(password, stored), True
 
+if mongo_enabled():
+    init_mongo_users()
+    migration_db = SessionLocal()
+    try:
+        migrate_legacy_users(migration_db.query(User).all())
+    finally:
+        migration_db.close()
+
 provision_admin_from_environment()
 
 def make_session(user: User) -> str:
@@ -89,7 +109,7 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
         expected = hmac.new(SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
         if not SESSION_SECRET or not hmac.compare_digest(signature, expected) or int(expiry) < int(time.time()):
             raise ValueError()
-        user = db.query(User).filter(User.id == int(user_id)).first()
+        user = find_user_by_id(user_id) if mongo_enabled() else db.query(User).filter(User.id == int(user_id)).first()
         if not user or user.status == "Blocked": raise ValueError()
         return user
     except Exception:
@@ -114,8 +134,23 @@ class LoginInput(BaseModel):
 
 @app.post("/api/signup")
 def register_user(user: UserCreate, response: Response, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.mobile == user.mobile).first():
+    existing_user = find_user_by_mobile(user.mobile) if mongo_enabled() else db.query(User).filter(User.mobile == user.mobile).first()
+    if existing_user:
         raise HTTPException(409, "Mobile number already registered")
+    if mongo_enabled():
+        try:
+            users_collection().insert_one({
+                "name": user.name.strip(), "mobile": user.mobile,
+                "email": str(user.email).lower(), "password": hash_password(user.password),
+                "status": "Active", "role": "user",
+            })
+        except Exception as exc:
+            # The unique MongoDB index closes the race between simultaneous signups.
+            from pymongo.errors import DuplicateKeyError
+            if isinstance(exc, DuplicateKeyError):
+                raise HTTPException(409, "Mobile number already registered") from exc
+            raise
+        return {"status": "success", "message": "User registered successfully"}
     new_user = User(name=user.name.strip(), mobile=user.mobile, email=str(user.email).lower(),
                     password=hash_password(user.password), status="Active", role="user")
     db.add(new_user); db.commit()
@@ -123,14 +158,19 @@ def register_user(user: UserCreate, response: Response, db: Session = Depends(ge
 
 @app.post("/api/auth/login")
 def login(data: LoginInput, response: Response, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.mobile == data.mobile).first()
+    user = find_user_by_mobile(data.mobile) if mongo_enabled() else db.query(User).filter(User.mobile == data.mobile).first()
     if not user or user.status == "Blocked":
         raise HTTPException(401, "Invalid mobile number or password")
     valid, legacy = verify_password(data.password, user.password or "")
     if not valid:
         raise HTTPException(401, "Invalid mobile number or password")
     if legacy:
-        user.password = hash_password(data.password); db.commit()
+        user.password = hash_password(data.password)
+        if mongo_enabled():
+            from bson import ObjectId
+            users_collection().update_one({"_id": ObjectId(user.id)}, {"$set": {"password": user.password}})
+        else:
+            db.commit()
     token = make_session(user)
     response.set_cookie(COOKIE_NAME, token, httponly=True, secure=True, samesite="lax",
                         path="/", max_age=SESSION_SECONDS)
@@ -157,7 +197,7 @@ def list_my_documents(user: User = Depends(current_user), db: Session = Depends(
 async def issue_document(mobile: str = Form(...), title: str = Form(...), file: UploadFile = File(...),
                          _: User = Depends(admin_user), db: Session = Depends(get_db)):
     require_uploads_enabled()
-    target_user = db.query(User).filter(User.mobile == mobile).first()
+    target_user = find_user_by_mobile(mobile) if mongo_enabled() else db.query(User).filter(User.mobile == mobile).first()
     if not target_user: raise HTTPException(404, "Target user not found")
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS or file.content_type not in {"application/pdf","image/jpeg","image/png"}:
@@ -186,14 +226,19 @@ def password_reset_disabled():
 
 @app.get("/api/users")
 def get_all_users(_: User = Depends(admin_user), db: Session = Depends(get_db)):
-    users = db.query(User).order_by(User.id.desc()).all()
+    users = list_mongo_users() if mongo_enabled() else db.query(User).order_by(User.id.desc()).all()
     return {"status": "success", "data": [{"id":u.id,"name":u.name,"mobile":u.mobile,
             "email":u.email,"status":u.status,"role":u.role} for u in users]}
 
 @app.patch("/api/users/{user_id}/status")
-def update_user_status(user_id: int, status: str, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def update_user_status(user_id: str, status: str, _: User = Depends(admin_user), db: Session = Depends(get_db)):
     if status not in {"Active", "Blocked"}: raise HTTPException(400, "Invalid status")
-    user = db.query(User).filter(User.id == user_id).first()
+    if mongo_enabled():
+        if not update_mongo_user(user_id, {"status": status}): raise HTTPException(404, "User not found")
+        return {"status":"success"}
+    try: numeric_user_id = int(user_id)
+    except ValueError: raise HTTPException(404, "User not found")
+    user = db.query(User).filter(User.id == numeric_user_id).first()
     if not user: raise HTTPException(404, "User not found")
     user.status = status; db.commit()
     return {"status":"success"}
@@ -223,11 +268,14 @@ def delete_application(application_id: int, _: User = Depends(admin_user), db: S
     return {"status": "success"}
 
 @app.delete("/api/users/{user_id}")
-def delete_user(user_id: int, actor: User = Depends(admin_user), db: Session = Depends(get_db)):
-    target = db.query(User).filter(User.id == user_id).first()
+def delete_user(user_id: str, actor: User = Depends(admin_user), db: Session = Depends(get_db)):
+    target = find_user_by_id(user_id) if mongo_enabled() else db.query(User).filter(User.id == int(user_id)).first()
     if not target: raise HTTPException(404, "User not found")
-    if target.id == actor.id: raise HTTPException(400, "You cannot delete your own admin account")
+    if str(target.id) == str(actor.id): raise HTTPException(400, "You cannot delete your own admin account")
     if target.role == "admin": raise HTTPException(403, "Deleting another administrator is disabled")
+    if mongo_enabled():
+        if not delete_mongo_user(user_id): raise HTTPException(404, "User not found")
+        return {"status": "success"}
     db.delete(target)
     db.commit()
     return {"status": "success"}
