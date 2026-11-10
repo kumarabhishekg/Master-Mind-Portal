@@ -8,6 +8,8 @@ This backend expects the HTML pages and FastAPI API to be served from the same H
 - `ADMIN_MOBILE`: the administrator's 10-digit mobile number.
 - `ADMIN_PASSWORD`: a unique password with at least 14 characters. Do not reuse an old password.
 - `DATABASE_URL`: use a managed production database URL; SQLite is intended only for local development or a single persistent instance.
+- `MONGODB_URI` and `MONGODB_DATABASE`: MongoDB Atlas connection and database for signup/login accounts. Keep the URI only in the server environment.
+- `MONGO_AUTH_REQUIRED=true`: enables MongoDB as the required source of truth for accounts. Do not enable until Atlas is reachable from the EC2 instance.
 - `UPLOAD_DIR`: a private, persistent directory or mounted volume for uploaded files.
 - `ALLOWED_ORIGINS`: leave empty for same-origin hosting. If a separate frontend origin is unavoidable, list exact HTTPS origins only.
 
@@ -23,6 +25,20 @@ The example values in `.env.example` are placeholders and must never be used as 
 6. Rotate any admin credentials that were ever committed to Git history.
 7. Password reset remains intentionally disabled until a real OTP/email ownership-verification flow is implemented.
 8. Review repository history for previously committed database files, customer uploads, or credentials. Removing a file in a later commit does not erase earlier Git history.
+
+## MongoDB Atlas account storage
+
+When `MONGODB_URI` is set, the `users` collection in `MONGODB_DATABASE` becomes the source of truth for account signup, login, roles, and blocked status. Existing SQL `users` rows are copied into MongoDB without replacing documents that already exist there. The legacy SQL rows are retained as a rollback copy; new account writes go to MongoDB. Passwords are stored as scrypt hashes.
+
+The existing SQL database continues to store service requests, uploaded-file metadata, print queue entries, and issued-document metadata. This keeps the planned Google datastore separate until that integration is explicitly implemented.
+
+In Atlas, create a database user with read/write access to the portal database and allow the EC2 instance's public egress IP as a `/32` network access entry. Do not use `0.0.0.0/0`. Put the resulting URI in `/home/ubuntu/Master-Mind-Portal/.env`, set `MONGODB_DATABASE=mastermind_portal` and `MONGO_AUTH_REQUIRED=true`, and restrict the file with `chmod 600 .env`. Do not paste the URI into chat or commit it.
+
+## Ubuntu EC2 service
+
+The repository includes `deploy/mastermind-portal.service` and `deploy/nginx-mastermind.conf.example`. The service runs FastAPI on loopback port 8000; Nginx must proxy the HTTPS site to it. The example Nginx configuration requires a real domain and an installed TLS certificate. Do not use the current static-only `/var/www/html` configuration with this API-backed login: signup, login, session cookies, and protected pages require FastAPI and HTTPS.
+
+Install the service file at `/etc/systemd/system/mastermind-portal.service`, ensure the `.env` contains the required session/admin values and MongoDB values, then run `sudo systemctl daemon-reload` and `sudo systemctl enable --now mastermind-portal`. Verify with `sudo systemctl status mastermind-portal --no-pager` and `curl -fsS http://127.0.0.1:8000/api/auth/me` (401 is expected when not logged in). Configure the domain's HTTPS Nginx reverse proxy only after replacing the example domain and certificate paths, then run `sudo nginx -t` and reload Nginx.
 
 ## Local development
 

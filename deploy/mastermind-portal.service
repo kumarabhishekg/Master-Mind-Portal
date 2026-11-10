@@ -1,0 +1,19 @@
+[Unit]
+Description=Master Mind Portal FastAPI backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/Master-Mind-Portal
+EnvironmentFile=/home/ubuntu/Master-Mind-Portal/.env
+Environment=PYTHONUNBUFFERED=1
+UMask=0077
+ExecStart=/home/ubuntu/Master-Mind-Portal/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
