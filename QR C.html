@@ -244,6 +244,10 @@
     let activePreviewSlot = 0;
     let cropperInstance = null;
 
+    function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[c]));
+    }
+
     function normalizeFileObject(rawName, rawSrc, index) {
         let isPdf = false;
         let ext = "jpg";
@@ -278,39 +282,18 @@
     }
 
     window.onload = async function() {
-        let activeIndex = localStorage.getItem("activeInstantIndex");
-        let queue = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-
-        if (activeIndex === null && queue.length > 0) {
-            activeIndex = queue.length - 1;
-        }
-
-        if (activeIndex !== null && queue[activeIndex]) {
-            let item = queue[activeIndex];
-            currentFilesList = [];
-
-            let namesList = item.fileNamesList || [];
-            
-            // Server URL support for frontImg, backImg, and extraDocs
-            if (item.frontImg) {
-                currentFilesList.push(normalizeFileObject(namesList[0] || "Front_Document", item.frontImg, 0));
-            }
-            if (item.backImg) {
-                currentFilesList.push(normalizeFileObject(namesList[1] || "Back_Document", item.backImg, 1));
-            }
-            if (item.extraDocs && Array.isArray(item.extraDocs)) {
-                item.extraDocs.forEach((doc, idx) => {
-                    currentFilesList.push(normalizeFileObject(namesList[idx + 2] || `Document_${idx + 3}`, doc, idx + 2));
-                });
-            }
-
-            renderDocumentTable();
-
-            if (currentFilesList.length > 0) {
-                viewFileInPreview(0, true);
-            }
-        } else {
-            document.getElementById("documentTableBody").innerHTML = `<tr><td colspan="4" style="color: #dc3545; padding: 20px;">Koi active document nahi mila! Upload page ya Admin Panel se file bhejein.</td></tr>`;
+        const tbody=document.getElementById("documentTableBody");
+        try {
+            const params=new URLSearchParams(window.location.search); const id=params.get("id");
+            if(!id) throw new Error("Print request ID missing");
+            const response=await fetch("/api/print-queue",{credentials:"same-origin"});
+            if(!response.ok) throw new Error("Could not load cloud print queue");
+            const result=await response.json(); const item=(result.data||[]).find(x=>x.id===id);
+            if(!item) throw new Error("Print request not found");
+            currentFilesList=(item.files||[]).map((f,i)=>normalizeFileObject(f.name||`Document_${i+1}`,f.url||f.file_url,i));
+            renderDocumentTable(); if(currentFilesList.length) viewFileInPreview(0,true);
+        } catch(error) {
+            tbody.innerHTML=`<tr><td colspan="4" style="color:#dc3545;padding:20px;">${error.message}. Login karein aur Admin Print Queue se request kholein.</td></tr>`;
         }
     };
 
@@ -323,8 +306,8 @@
 
         tbody.innerHTML = currentFilesList.map((fileObj, idx) => {
             let badgeHTML = fileObj.isPdf
-                ? `<div class="draggable-item" draggable="true" ondragstart="dragStart(event, ${idx})" title="Drag to Right Preview">📄 <span>${fileObj.name}</span></div>`
-                : `<div class="draggable-item" draggable="true" ondragstart="dragStart(event, ${idx})" title="Drag to Right Preview"><img src="${fileObj.blobUrl}" class="thumb-img" alt="img"> <span>${fileObj.name}</span></div>`;
+                ? `<div class="draggable-item" draggable="true" ondragstart="dragStart(event, ${idx})" title="Drag to Right Preview">📄 <span>${escapeHtml(fileObj.name)}</span></div>`
+                : `<div class="draggable-item" draggable="true" ondragstart="dragStart(event, ${idx})" title="Drag to Right Preview"><img src="${fileObj.blobUrl}" class="thumb-img" alt="img"> <span>${escapeHtml(fileObj.name)}</span></div>`;
 
             return `
                 <tr>
@@ -393,7 +376,7 @@
                 }
             } else {
                 if (currentFormat === "Card" && currentFilesList.length > 1) {
-                    let slotChoice = prompt(`"${fileObj.name}" ko kis box mein dekhna hai?\n1 -> Front Side (Box 1)\n2 -> Back Side (Box 2)`, "1");
+                    let slotChoice = prompt(`"${escapeHtml(fileObj.name)}" ko kis box mein dekhna hai?\n1 -> Front Side (Box 1)\n2 -> Back Side (Box 2)`, "1");
                     if (slotChoice === "2") {
                         setPreviewSlot(1, fileObj);
                     } else if (slotChoice === "1") {
@@ -413,12 +396,12 @@
         if (fileObj.isPdf) {
             container.innerHTML = `
                 <embed src="${fileObj.blobUrl}" type="application/pdf" />
-                <div class="file-caption" style="margin-top:6px; font-weight:bold; color:#1e3c72; font-size:12px;">📄 ${fileObj.name}</div>
+                <div class="file-caption" style="margin-top:6px; font-weight:bold; color:#1e3c72; font-size:12px;">📄 ${escapeHtml(fileObj.name)}</div>
             `;
         } else {
             container.innerHTML = `
-                <img id="imgPreview${slotIndex + 1}" src="${fileObj.blobUrl}" alt="${fileObj.name}">
-                <div class="file-caption" style="margin-top:6px; font-weight:bold; color:#1e3c72; font-size:12px;">🖼️ ${fileObj.name}</div>
+                <img id="imgPreview${slotIndex + 1}" src="${fileObj.blobUrl}" alt="${escapeHtml(fileObj.name)}">
+                <div class="file-caption" style="margin-top:6px; font-weight:bold; color:#1e3c72; font-size:12px;">🖼️ ${escapeHtml(fileObj.name)}</div>
             `;
             applyQualityFilter();
         }
@@ -481,7 +464,7 @@
             let printWin = window.open("", "_blank");
             printWin.document.write(`
                 <html>
-                <head><title>Print - ${fileObj.name}</title></head>
+                <head><title>Print - ${escapeHtml(fileObj.name)}</title></head>
                 <body style="margin:0; display:flex; justify-content:center; align-items:flex-start;">
                     <img src="${fileObj.blobUrl}" style="${imgStyle}" onload="setTimeout(()=>{window.print(); window.close();}, 300)">
                 </body>

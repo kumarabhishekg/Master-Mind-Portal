@@ -1,0 +1,13 @@
+.env
+*.json
+!package.json
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+mastermind.db
+mastermind_portal.db
+mastermind_storage/
+.DS_Store
+
+secrets/

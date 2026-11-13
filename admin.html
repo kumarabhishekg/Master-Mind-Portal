@@ -183,97 +183,55 @@
         }
     }
 
-    function loadAllData() {
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        let userBody = document.getElementById("userTableBody");
-        if (users.length === 0) {
-            userBody.innerHTML = `<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>`;
-        } else {
-            userBody.innerHTML = users.map((u, i) => {
-                let status = u.status || "Active";
-                let statusClass = status === "Blocked" ? "status-blocked" : "status-active";
-                let btnText = status === "Blocked" ? "Unblock" : "Block";
-                let btnClass = status === "Blocked" ? "unblock-btn" : "block-btn";
-                return `<tr>
-                    <td>${i+1}</td>
-                    <td><b>${u.name || 'N/A'}</b></td>
-                    <td>${u.mobile || 'N/A'}</td>
-                    <td>${u.email || 'N/A'}</td>
-                    <td><span class="status-badge ${statusClass}">${status}</span></td>
-                    <td>
-                        <button class="${btnClass}" onclick="toggleBlockUser(${i})">${btnText}</button>
-                        <button class="del-btn" onclick="deleteUser(${i})">Delete</button>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
+    let cloudApplications = []
+    let cloudPrintQueue = []
 
-        loadTableData("cscApplications", "cscTableBody");
-        loadTableData("bankingApplications", "bankingTableBody");
-        loadTableData("gstApplications", "gstTableBody");
-        loadTableData("travelApplications", "travelTableBody");
-        loadInstantPrintData();
-        loadCompletedData();
+    async function loadAllData() {
+        try {
+            const [ur, ar] = await Promise.all([
+                fetch('/api/users',{credentials:'same-origin'}),
+                fetch('/api/applications',{credentials:'same-origin'})
+            ]);
+            if (ur.status===401 || ur.status===403) { alert('Admin login required'); location.href='login.html'; return; }
+            const usersResult=await ur.json();
+            const appsResult=ar.ok ? await ar.json() : {data:[]};
+            const users=usersResult.data || [];
+            const userBody=document.getElementById('userTableBody');
+            userBody.innerHTML=users.length ? users.map(u=>{
+                const blocked=u.status==='Blocked';
+                return `<tr><td>${u.id}</td><td><b>${escapeHtml(u.name)}</b></td><td>${escapeHtml(u.mobile)}</td><td>${escapeHtml(u.email)}</td><td><span class="status-badge ${blocked?'status-blocked':'status-active'}">${u.status}</span></td><td>${u.role==='admin'?'Admin account':`<button class="${blocked?'unblock-btn':'block-btn'}" onclick="toggleBlockUser('${escapeHtml(u.id)}','${blocked?'Active':'Blocked'}')">${blocked?'Unblock':'Block'}</button> <button class="del-btn" onclick="deleteUser('${escapeHtml(u.id)}')">Delete</button>`}</td></tr>`;
+            }).join('') : `<tr><td colspan="6" class="no-data">Koi user registered nahi hai.</td></tr>`;
+            const apps=appsResult.data || []; cloudApplications = apps;
+            const rowsHtml = rows => rows.length ? rows.map(x=>`<tr><td>${escapeHtml(x.id)}</td><td><b>${escapeHtml(x.service_name || x.serviceName || 'Service')}</b></td><td>${escapeHtml(x.customer_name || x.aadhaarName || x.sender || 'Customer')} (${escapeHtml(x.mobile || '')})</td><td><span class="status-badge">${escapeHtml(x.status || 'Pending')}</span></td><td>${x.file_url ? `<a href="${escapeHtml(x.file_url)}" target="_blank" rel="noopener">View file</a>` : 'No file'} <button class="view-btn" onclick="showDetails('${escapeHtml(x.id)}')">View</button> <select aria-label="Application status" onchange="updateCloudApplication('${escapeHtml(x.id)}',this.value)"><option ${x.status==='Pending'?'selected':''}>Pending</option><option ${x.status==='In Progress'?'selected':''}>In Progress</option><option ${x.status==='Approved'?'selected':''}>Approved</option><option ${x.status==='Rejected'?'selected':''}>Rejected</option><option ${x.status==='Completed'?'selected':''}>Completed</option><option ${x.status==='Issued'?'selected':''}>Issued</option></select> <button class="del-btn" onclick="deleteCloudApplication('${escapeHtml(x.id)}')">Delete</button></td></tr>`).join('') : `<tr><td colspan="5" class="no-data">Koi application nahi hai.</td></tr>`;
+            [['cscTableBody',apps],['bankingTableBody',apps.filter(x=>(x.service_name||'').toLowerCase().includes('bank'))],['gstTableBody',apps.filter(x=>(x.service_name||'').toLowerCase().includes('gst'))],['travelTableBody',apps.filter(x=>(x.service_name||'').toLowerCase().includes('travel') || (x.service_name||'').toLowerCase().includes('booking'))]].forEach(([id,rows])=>{const el=document.getElementById(id); if(el)el.innerHTML=rowsHtml(rows);});
+            await loadInstantPrintData(); loadCompletedData();
+        } catch(e) { console.error(e); alert('Server data load nahi hua.'); }
+    }
+    function escapeHtml(value) { return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    async function toggleBlockUser(id,status) {
+        const r=await fetch(`/api/users/${id}/status?status=${status}`,{method:'PATCH',credentials:'same-origin'});
+        if(!r.ok){const x=await r.json();alert(x.detail||'Update failed');return;} loadAllData();
+    }
+    async function deleteUser(id) {
+        if(!confirm('Kya aap is registered user ko delete karna chahte hain?'))return;
+        const r=await fetch(`/api/users/${id}`,{method:'DELETE',credentials:'same-origin'});
+        if(!r.ok){const x=await r.json();alert(x.detail||'Delete failed');return;} loadAllData();
     }
 
-    function toggleBlockUser(index) {
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        if (users[index]) {
-            users[index].status = users[index].status === "Blocked" ? "Active" : "Blocked";
-            localStorage.setItem("mastermindUsers", JSON.stringify(users));
-            loadAllData();
-        }
+    async function updateCloudApplication(id,status) {
+        const r=await fetch(`/api/applications/${encodeURIComponent(id)}`,{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,admin_note:''})});
+        if(!r.ok){alert('Status update failed');return;} loadAllData();
     }
-
-    function deleteUser(index) {
-        if (confirm("Kya aap is registered user ko delete karna chahte hain?")) {
-            let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-            users.splice(index, 1);
-            localStorage.setItem("mastermindUsers", JSON.stringify(users));
-            loadAllData();
-        }
-    }
-
-    function loadTableData(storageKey, tbodyId) {
-        let rawData = JSON.parse(localStorage.getItem(storageKey)) || [];
-        let pendingData = rawData.map((item, index) => ({...item, originalIndex: index})).filter(item => item.status !== "Completed");
-        let tbody = document.getElementById(tbodyId);
-        
-        if (pendingData.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="5" class="no-data">Koi pending application nahi hai.</td></tr>`; 
-            return; 
-        }
-
-        tbody.innerHTML = pendingData.map((item, i) => {
-            return `<tr>
-                <td>${i+1}</td>
-                <td><b>${item.serviceName || 'N/A'}</b></td>
-                <td>${item.sender || 'N/A'}</td>
-                <td><span class="status-badge" style="background:#fff3cd; color:#856404;">${item.status || "Pending"}</span></td>
-                <td>
-                    <button class="complete-btn" onclick="markAsCompleted('${storageKey}', ${item.originalIndex})">Complete</button>
-                    <button class="view-btn" onclick="showDetails('${storageKey}', ${item.originalIndex})">View</button>
-                    <button class="del-btn" onclick="deleteSingleItem('${storageKey}', ${item.originalIndex})">Delete</button>
-                </td>
-            </tr>`;
-        }).join('');
-    }
-
-    function markAsCompleted(storageKey, index) {
-        if(confirm("Kya aap is application ko 'Completed' mark karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-            if(data[index]) {
-                data[index].status = "Completed";
-                localStorage.setItem(storageKey, JSON.stringify(data));
-                loadAllData();
-            }
-        }
+    async function deleteCloudApplication(id) {
+        if(!confirm('Delete this application?'))return;
+        const r=await fetch(`/api/applications/${encodeURIComponent(id)}`,{method:'DELETE',credentials:'same-origin'});
+        if(!r.ok){alert('Delete failed');return;} loadAllData();
     }
 
     function renderFileElement(fileSrc, labelText, index) {
         if (!fileSrc || typeof fileSrc !== "string") return "";
-        let isPdf = fileSrc.toLowerCase().endsWith(".pdf") || fileSrc.includes("application/pdf") || fileSrc.includes(".pdf?");
-        let cleanTitle = labelText || `Document / File ${index + 1}`;
+        let cleanTitle = escapeHtml(labelText || `Document / File ${index + 1}`);
+        let isPdf = fileSrc.toLowerCase().endsWith(".pdf") || fileSrc.includes("application/pdf") || fileSrc.includes(".pdf?") || cleanTitle.toLowerCase().endsWith(".pdf");
         let downloadExt = isPdf ? "pdf" : "jpg";
 
         let previewMedia = isPdf
@@ -365,43 +323,15 @@
         return allFiles;
     }
 
-    function showDetails(storageKey, index) {
-        let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-        let item = data[index];
-        if(!item) return;
-
-        let senderMobile = "";
-        if (item.sender) {
-            let match = item.sender.match(/([0-9]{10})/);
-            if (match) senderMobile = match[1];
-        }
-        if (!senderMobile && item.mobile && /^[0-9]{10}$/.test(item.mobile)) {
-            senderMobile = item.mobile;
-        }
-
-        let targetSelectHtml = `<select id="targetUserMobile" style="width: 100%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc;">`;
-        if (senderMobile) {
-            targetSelectHtml += `<option value="${senderMobile}">${item.sender || senderMobile} (${senderMobile})</option>`;
-        } else {
-            targetSelectHtml += `<option value="">No Sender Mobile Found</option>`;
-        }
-        targetSelectHtml += `</select>`;
-        document.getElementById("targetUserBox").innerHTML = targetSelectHtml;
-
-        let allFiles = collectAllItemFiles(item);
-        let docsHtml = allFiles.length > 0
-            ? allFiles.map((fileObj, idx) => renderFileElement(fileObj.src, fileObj.label, idx)).join('')
-            : `<p style="color:#888; font-style:italic;">Koi file uploaded nahi hai.</p>`;
-
-        document.getElementById("modalBodyText").innerHTML = `
-            <p><strong>Service:</strong> ${item.serviceName || 'N/A'}</p>
-            <p><strong>Name / Customer:</strong> ${item.aadhaarName || item.customer_name || 'N/A'}</p>
-            <p><strong>Mobile:</strong> ${item.mobile || 'N/A'}</p>
-            <p><strong>Description:</strong> ${item.description || 'N/A'}</p>
-            <p><strong>Sender Info:</strong> ${item.sender || 'N/A'}</p>
-            <hr>${docsHtml}
-        `;
-        document.getElementById("detailsModal").style.display = "flex";
+    function showDetails(applicationId) {
+        const item = cloudApplications.find(x => x.id === applicationId); if(!item)return;
+        const senderMobile = item.mobile || '';
+        document.getElementById("targetUserBox").innerHTML = `<select id="targetUserMobile"><option value="${escapeHtml(senderMobile)}">${escapeHtml(senderMobile)}</option></select>`;
+        const files = [item.file_url, item.frontImg, item.backImg, ...(item.extraDocs||[])].filter(x=>typeof x==='string' && x.startsWith('/api/'));
+        const labels=item.fileNamesList||[];
+        const docsHtml = files.map((f,i)=>renderFileElement(f,labels[i]||`Document ${i+1}`,i)).join('') || '<p>No attached files</p>';
+        document.getElementById("modalBodyText").innerHTML = `<p><strong>Service:</strong> ${escapeHtml(item.service_name||item.serviceName||'N/A')}</p><p><strong>Customer:</strong> ${escapeHtml(item.customer_name||item.aadhaarName||'N/A')}</p><p><strong>Mobile:</strong> ${escapeHtml(item.mobile||'N/A')}</p><p><strong>Description:</strong> ${escapeHtml(item.description||'N/A')}</p><hr>${docsHtml}`;
+        document.getElementById("detailsModal").style.display="flex";
     }
 
     async function sendDocumentFromApp() {
@@ -421,131 +351,38 @@
 
         let file = fileInput.files[0];
         let formData = new FormData();
-        formData.append("file", file);
-        formData.append("customer_name", "Admin Issued");
-        formData.append("service_name", title);
-        formData.append("mobile", mobile);
-        formData.append("description", "Issued by Admin");
-
+        formData.append("file", file); formData.append("target_mobile", mobile); formData.append("title", title);
         try {
-            let response = await fetch("/api/upload", {
-                method: "POST",
-                body: formData
-            });
-            let result = await response.json();
+            const response = await fetch("/api/issued-documents", {method:"POST", body:formData, credentials:"same-origin"});
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail || "Upload failed");
+            alert(`Document securely issued to ${mobile}.`);
+            document.getElementById("sendDocTitle").value = ""; fileInput.value = ""; closeModal('detailsModal');
+        } catch (err) { alert("Document issue failed: " + err.message); }
 
-            if (result.status === "success") {
-                let docData = {
-                    targetMobile: mobile,
-                    title: title,
-                    fileName: file.name,
-                    fileUrl: result.file_url,
-                    date: new Date().toLocaleDateString()
-                };
-
-                let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
-                issuedList.push(docData);
-                localStorage.setItem("userIssuedDocs", JSON.stringify(issuedList));
-
-                alert(`Document safaltapurvak sender (Mobile: ${mobile}) ko bhej diya gaya hai!`);
-                document.getElementById("sendDocTitle").value = "";
-                fileInput.value = "";
-                closeModal('detailsModal');
-            } else {
-                alert("Upload failed: " + result.message);
-            }
-        } catch (err) {
-            alert("⚠️ Server connection error! Kripya check karein ki FastAPI server chal raha hai ya nahi.");
-        }
     }
 
-    function deleteSingleItem(storageKey, index) {
-        if (confirm("Kya aap is record ko delete karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem(storageKey)) || [];
-            data.splice(index, 1);
-            localStorage.setItem(storageKey, JSON.stringify(data));
-            loadAllData();
-        }
+    async function loadInstantPrintData() {
+        const tbody=document.getElementById("instantTableBody");
+        try {
+            const r=await fetch('/api/print-queue',{credentials:'same-origin'}); if(!r.ok)throw new Error('load failed');
+            const result=await r.json(); cloudPrintQueue=result.data||[];
+            tbody.innerHTML=cloudPrintQueue.length?cloudPrintQueue.map((item,i)=>`<tr><td>${i+1}</td><td><b>${escapeHtml(item.customer_name)}</b></td><td>${(item.files||[]).length} file(s)</td><td>${escapeHtml(item.print_type)}</td><td>${escapeHtml(item.description||'')}</td><td><button class="complete-btn" onclick="window.location.href='QR C.html?id=${encodeURIComponent(item.id)}'">Edit & Print</button> <button class="complete-btn" onclick="updatePrintStatus('${item.id}','Completed')">Complete</button> <button class="del-btn" onclick="deleteInstantItem('${item.id}')">Delete</button></td></tr>`).join(''):'<tr><td colspan="6" class="no-data">Koi instant print request nahi hai.</td></tr>';
+        } catch(e) { tbody.innerHTML='<tr><td colspan="6">Print queue load nahi hui.</td></tr>'; }
     }
-
-    function loadInstantPrintData() {
-        let rawData = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-        let tbody = document.getElementById("instantTableBody");
-
-        if (rawData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="no-data">Koi instant print request nahi hai.</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = rawData.map((item, index) => {
-            let allFiles = collectAllItemFiles(item);
-            let filesCount = allFiles.length || 1;
-
-            return `<tr>
-                <td>${index + 1}</td>
-                <td><b>${item.aadhaarName || 'Customer'}</b></td>
-                <td>📁 ${filesCount} File(s)</td>
-                <td>📄 ${filesCount} Page(s)</td>
-                <td style="text-align: left; font-size: 12px;">${item.description || 'Quick Upload'}</td>
-                <td>
-                    <button class="complete-btn" onclick="openEditorPage(${index})">⚡ Edit & Print</button>
-                    <button class="del-btn" onclick="deleteInstantItem(${index})">Delete</button>
-                </td>
-            </tr>`;
-        }).join('');
+    async function updatePrintStatus(id,status) {
+        const r=await fetch(`/api/print-queue/${encodeURIComponent(id)}`,{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,admin_note:''})});
+        if(!r.ok){alert('Print status update failed');return;} loadInstantPrintData();
     }
-
-    function openEditorPage(index) {
-        localStorage.setItem("activeInstantIndex", index);
-        window.location.href = "QR C.html";
+    async function deleteInstantItem(id) {
+        if(!confirm('Delete this print request?'))return;
+        const r=await fetch(`/api/print-queue/${encodeURIComponent(id)}`,{method:'DELETE',credentials:'same-origin'});
+        if(!r.ok){alert('Delete failed');return;} loadInstantPrintData();
     }
-
-    function deleteInstantItem(index) {
-        if(confirm("Kya aap is record ko delete karna chahte hain?")) {
-            let data = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-            data.splice(index, 1);
-            localStorage.setItem("instantPrintQueue", JSON.stringify(data));
-            loadInstantPrintData();
-        }
-    }
-
     function loadCompletedData() {
-        let tbody = document.getElementById("completedTableBody");
-        let categories = [
-            { key: "cscApplications", name: "CSC" }, 
-            { key: "bankingApplications", name: "Banking" }, 
-            { key: "gstApplications", name: "GST" }, 
-            { key: "travelApplications", name: "Travel" }
-        ];
-        let allCompleted = [];
-
-        categories.forEach(cat => {
-            let data = JSON.parse(localStorage.getItem(cat.key)) || [];
-            data.forEach((item, index) => { 
-                if (item.status === "Completed") {
-                    allCompleted.push({...item, category: cat.name, storageKey: cat.key, originalIndex: index}); 
-                }
-            });
-        });
-
-        if (allCompleted.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="6" class="no-data">Koi completed work nahi hai.</td></tr>`; 
-            return; 
-        }
-
-        tbody.innerHTML = allCompleted.map((item, i) => {
-            return `<tr>
-                <td>${i+1}</td>
-                <td><b>${item.category}</b></td>
-                <td>${item.serviceName || 'N/A'}</td>
-                <td>${item.sender || 'N/A'}</td>
-                <td><span class="status-badge" style="background:#d1e7dd; color:#0f5132;">Completed</span></td>
-                <td>
-                    <button class="view-btn" onclick="showDetails('${item.storageKey}', ${item.originalIndex})">View</button>
-                    <button class="del-btn" onclick="deleteSingleItem('${item.storageKey}', ${item.originalIndex})">Delete</button>
-                </td>
-            </tr>`;
-        }).join('');
+        const tbody=document.getElementById('completedTableBody'); if(!tbody)return;
+        const rows=cloudApplications.filter(x=>x.status==='Completed');
+        tbody.innerHTML=rows.length?rows.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(x.record_type||'Application')}</td><td>${escapeHtml(x.service_name||x.serviceName||'N/A')}</td><td>${escapeHtml(x.mobile||'')}</td><td><span class="status-badge">Completed</span></td><td>No action</td></tr>`).join(''):'<tr><td colspan="6" class="no-data">Koi completed work nahi hai.</td></tr>';
     }
 
     function closeModal(id) { document.getElementById(id).style.display = "none"; }

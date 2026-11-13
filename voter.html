@@ -119,29 +119,21 @@
     let currentSenderMobile = "";
     let currentSenderName = "";
 
-    window.onload = function() {
-        const isLoggedin = localStorage.getItem("isLoggedIn");
-        currentSenderMobile = localStorage.getItem("loggedInUserMobile");
-        currentSenderName = localStorage.getItem("loggedInUserName");
+    window.onload = async function() {
         const authLink = document.getElementById("authLink");
-
-        if (isLoggedin === "true" && currentSenderMobile) {
-            let nameSpan = document.getElementById("displaySenderName");
-            if(nameSpan) nameSpan.innerText = `${currentSenderName} (${currentSenderMobile})`;
-            
-            if(authLink) {
-                authLink.innerText = "LOGOUT";
-                authLink.href = "#";
-                authLink.onclick = function(e) {
-                    e.preventDefault();
-                    localStorage.removeItem("isLoggedIn");
-                    localStorage.removeItem("loggedInUserName");
-                    localStorage.removeItem("loggedInUserMobile");
-                    alert("Logged out successfully!");
-                    window.location.href = "HOME.html";
-                };
+        try {
+            const response = await fetch("/api/me", {credentials: "same-origin"});
+            if (!response.ok) throw new Error("Login required");
+            const result = await response.json();
+            currentSenderMobile = result.user.mobile;
+            currentSenderName = result.user.name;
+            const nameSpan = document.getElementById("displaySenderName");
+            if (nameSpan) nameSpan.innerText = `${currentSenderName} (${currentSenderMobile})`;
+            if (authLink) {
+                authLink.innerText = "LOGOUT"; authLink.href = "#";
+                authLink.onclick = async function(e) { e.preventDefault(); await fetch("/api/logout", {method:"POST", credentials:"same-origin"}); window.location.href="HOME.html"; };
             }
-        } else {
+        } catch (error) {
             alert("Form bharne ke liye pehle Login karna zaroori hai!");
             window.location.href = "login.html";
         }
@@ -158,7 +150,7 @@
         formData.append("description", desc || "");
 
         try {
-            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+            let response = await fetch("/api/upload", {
                 method: "POST",
                 body: formData
             });
@@ -169,12 +161,8 @@
                 throw new Error(result.message || "Upload failed");
             }
         } catch (err) {
-            console.error("Server upload error, falling back to base64:", err);
-            return await new Promise((resolve) => {
-                let reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.readAsDataURL(file);
-            });
+            console.error("Cloud upload failed:", err);
+            throw err;
         }
     }
 
@@ -225,9 +213,12 @@
                 status: "Pending"
             };
 
-            let existingApplications = JSON.parse(localStorage.getItem("cscApplications")) || [];
-            existingApplications.push(applicationData);
-            localStorage.setItem("cscApplications", JSON.stringify(existingApplications));
+            const saveResponse = await fetch("/api/applications", {
+                method: "POST", credentials: "same-origin",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(applicationData)
+            });
+            if (!saveResponse.ok) { const err = await saveResponse.json(); throw new Error(err.detail || "Application save failed"); }
 
             alert("Voter Card Application Successfully Submitted (Fee: ₹200)!");
             window.location.href = "H login.html";

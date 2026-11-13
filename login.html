@@ -144,60 +144,20 @@
         generateCaptcha();
     };
 
-    function validateLogin(event) {
+    async function validateLogin(event) {
         event.preventDefault();
-
-        var mobile = document.getElementById("username").value.trim();
-        var pass = document.getElementById("password").value.trim();
-        var userInputCaptcha = document.getElementById("captchaInput").value.trim();
-
-        if (userInputCaptcha !== generatedCaptcha) {
-            alert("Galat Captcha code! Kripya dobara try karein.");
-            generateCaptcha();
-            document.getElementById("captchaInput").value = "";
-            return false;
-        }
-
-        // 1. Admin 1 Check
-        if (mobile === "7037505945" && pass === "Ankit@7037") {
-            localStorage.setItem("isLoggedIn", "true");
-            localStorage.setItem("loggedInUserName", "Admin 1");
-            localStorage.setItem("loggedInUserMobile", "7037505945");
-            alert("Admin Login Successful!");
-            window.location.href = "admin.html";
-            return;
-        }
-
-        // 2. Admin 2 Check
-        if (mobile === "9758078814" && pass === "Ankit@9758") {
-            localStorage.setItem("isLoggedIn", "true");
-            localStorage.setItem("loggedInUserName", "Admin 2");
-            localStorage.setItem("loggedInUserMobile", "9758078814");
-            alert("Admin Login Successful!");
-            window.location.href = "admin.html";
-            return;
-        }
-
-        // 3. Regular Registered User Check
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        let foundUser = users.find(u => u.mobile === mobile && u.password === pass);
-
-        if (foundUser) {
-            if (foundUser.status === "Blocked") {
-                alert("Aapka account admin dwara block kar diya gaya hai! Kripya admin se sampark karein.");
-                return;
-            }
-
-            localStorage.setItem("isLoggedIn", "true");
-            localStorage.setItem("loggedInUserName", foundUser.name);
-            localStorage.setItem("loggedInUserMobile", foundUser.mobile);
-            alert("Login Successful!");
-            window.location.href = "H login.html";
-        } else {
-            alert("Galat Mobile Number ya Password! Pehle Sign Up karein ya details check karein.");
-            generateCaptcha();
-            document.getElementById("captchaInput").value = "";
-        }
+        const mobile = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+        const captcha = document.getElementById("captchaInput").value.trim();
+        if (captcha !== generatedCaptcha) { alert("Galat Captcha code! Kripya dobara try karein."); generateCaptcha(); document.getElementById("captchaInput").value=""; return false; }
+        try {
+            const response = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({mobile,password})});
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail || 'Login failed');
+            alert('Login successful!');
+            window.location.href = result.user.role === 'admin' ? 'admin.html' : 'H login.html';
+        } catch (err) { alert(err.message || 'Server se connection nahi ho paya.'); generateCaptcha(); document.getElementById('captchaInput').value=''; }
+        return false;
     }
 
     // --- FORGOT PASSWORD LOGIC ---
@@ -211,27 +171,8 @@
 
     function resetPassword(event) {
         event.preventDefault();
-
-        let mobile = document.getElementById("forgotMobile").value.trim();
-        let email = document.getElementById("forgotEmail").value.trim();
-        let newPass = document.getElementById("newPassword").value.trim();
-
-        let users = JSON.parse(localStorage.getItem("mastermindUsers")) || [];
-        let userIndex = users.findIndex(u => u.mobile === mobile && u.email === email);
-
-        if (userIndex !== -1) {
-            users[userIndex].password = newPass;
-            localStorage.setItem("mastermindUsers", JSON.stringify(users));
-            
-            alert("Password successfully reset! Ab aap apne naye password ke sath login kar sakte hain.");
-            
-            document.getElementById("forgotMobile").value = "";
-            document.getElementById("forgotEmail").value = "";
-            document.getElementById("newPassword").value = "";
-            closeForgotModal();
-        } else {
-            alert("Details match nahi hui! Kripya sahi Registered Mobile aur Email daalein.");
-        }
+        alert("Password reset ke liye administrator se sampark karein. Email/mobile ke basis par bina verification password reset allowed nahi hai.");
+        return false;
     }
 </script>
 

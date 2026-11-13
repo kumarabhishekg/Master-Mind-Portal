@@ -95,6 +95,7 @@
 </div>
 
 <script>
+    let authenticatedMobile = "";
     function showFileDetails(input) {
         const fileNameDiv = document.getElementById("selectedFileName");
         if (input.files && input.files.length > 0) {
@@ -117,7 +118,7 @@
             formData.append("file", file);
             formData.append("customer_name", customerName);
             formData.append("service_name", `Quick Upload (${printType})`);
-            formData.append("mobile", "Not Provided");
+            formData.append("mobile", authenticatedMobile);
             formData.append("description", `Print Type: ${printType}`);
 
             xhr.upload.onprogress = function(event) {
@@ -152,6 +153,9 @@
         event.preventDefault();
         
         let name = document.getElementById("custName").value.trim() || "Anonymous Customer";
+        const meResponse=await fetch("/api/me",{credentials:"same-origin"});
+        if(!meResponse.ok){alert("Instant Print ke liye pehle login karein.");location.href="login.html";return;}
+        const meData=await meResponse.json(); authenticatedMobile=meData.user.mobile;
         let printTypeRadio = document.querySelector('input[name="printType"]:checked');
         if (!printTypeRadio) {
             alert("Kripya Print Type select karein!");
@@ -203,7 +207,7 @@
                 });
 
                 if (result && result.status === "success") {
-                    let cleanUrl = "/storage/" + result.file_url.split("/storage/").pop();
+                    let cleanUrl = result.file_url;
                     fileMetaList.push({
                         name: file.name,
                         url: cleanUrl,
@@ -217,6 +221,11 @@
             completedFilesBytes += file.size;
         }
 
+        if (fileMetaList.length !== files.length) {
+            alert("Kuch files upload nahi hui. Print request save nahi ki gayi. Kripya dobara try karein.");
+            submitBtn.disabled = false;
+            return;
+        }
         if (progressBar) progressBar.style.width = "100%";
         if (percentText) percentText.innerText = "100%";
         if (statusText) statusText.innerText = "Upload Complete!";
@@ -236,23 +245,17 @@
                 status: "Pending"
             };
 
-            try {
-                let existing = JSON.parse(localStorage.getItem("instantPrintQueue")) || [];
-                existing.push(applicationData);
-                localStorage.setItem("instantPrintQueue", JSON.stringify(existing));
-            } catch (e) {
-                localStorage.removeItem("instantPrintQueue");
-                localStorage.setItem("instantPrintQueue", JSON.stringify([applicationData]));
-            }
-
-            alert(`✅ ${fileMetaList.length} files successfully Python Server par upload ho gayi hain!`);
-            
-            let isLoggedIn = localStorage.getItem("isLoggedIn");
-            if (isLoggedIn === "true") {
-                window.location.href = "H login.html";
-            } else {
-                window.location.href = "HOME.html";
-            }
+            const meResponse = await fetch("/api/me", {credentials:"same-origin"});
+            if (!meResponse.ok) throw new Error("Please login before creating a print request");
+            const me = await meResponse.json();
+            const queueResponse = await fetch("/api/print-queue", {
+                method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({customer_name:name, print_type:printType, mobile:me.user.mobile,
+                    files:fileMetaList, description:applicationData.description})
+            });
+            if (!queueResponse.ok) throw new Error("Could not save print queue record");
+            alert(`✅ ${fileMetaList.length} files securely uploaded and print request saved to cloud!`);
+            window.location.href = "H login.html";
         } else {
             alert("❌ Server par file upload nahi ho paayi. Kripya apna internet ya server check karein.");
             submitBtn.disabled = false;

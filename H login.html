@@ -140,6 +140,11 @@
     <div class="docs-scroll-box" id="issuedDocsList"></div>
 </div>
 
+<div class="dashboard-container" style="margin-top:20px;">
+    <h2>📋 Your Applications & Status</h2>
+    <div class="docs-scroll-box" id="myApplicationsList"></div>
+</div>
+
 <!-- View Document Popup Modal -->
 <div id="viewModal" class="modal">
     <div class="modal-content">
@@ -322,61 +327,46 @@
 <script>
     let loggedInMobile = "";
 
-    window.onload = function() {
-        const isLoggedin = localStorage.getItem("isLoggedIn");
-        loggedInMobile = localStorage.getItem("loggedInUserMobile");
+    window.onload = async function() {
         const authLink = document.getElementById("authLink");
-
-        if (isLoggedin === "true" && loggedInMobile) {
-            document.getElementById("userMobileDisplay").innerText = `(${loggedInMobile})`;
-            authLink.innerText = "LOGOUT";
-            authLink.href = "#";
-            
-            authLink.onclick = function(e) {
-                e.preventDefault();
-                localStorage.removeItem("isLoggedIn");
-                localStorage.removeItem("loggedInUserMobile");
-                localStorage.removeItem("loggedInUserName");
-                alert("Logged out successfully!");
-                window.location.href = "HOME.html";
-            };
-        } else {
-            window.location.href = "login.html";
-        }
-
-        loadIssuedDocuments();
+        try {
+            const response=await fetch('/api/me',{credentials:'same-origin'});
+            if(!response.ok) throw new Error('Not logged in');
+            const result=await response.json();
+            loggedInMobile=result.user.mobile;
+            document.getElementById("userMobileDisplay").innerText=`(${loggedInMobile})`;
+            authLink.innerText="LOGOUT"; authLink.href="#";
+            authLink.onclick=async function(e){e.preventDefault();await fetch('/api/logout',{method:'POST',credentials:'same-origin'});window.location.href='HOME.html';};
+            loadIssuedDocuments();
+            loadMyApplications();
+        } catch(e) { window.location.href='login.html'; }
     };
 
-    function loadIssuedDocuments() {
-        let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
-        let container = document.getElementById("issuedDocsList");
+    async function loadIssuedDocuments() {
+        const container=document.getElementById("issuedDocsList");
+        try {
+            const response=await fetch('/api/issued-documents',{credentials:'same-origin'});
+            if(!response.ok) throw new Error('Could not load documents');
+            const result=await response.json(); const rows=result.data||[];
+            if(!rows.length){container.innerHTML='<p style="color:#777;text-align:center;padding:15px;">Abhi tak aapke liye koi document/application nahi hai.</p>';return;}
+            container.innerHTML=rows.map(doc=>`<div class="doc-card"><div><strong>${String(doc.title).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</strong><br><small style="color:#555;">Status: ${doc.status}</small></div><div><a class="btn-action btn-view" href="${doc.file_url || doc.fileUrl}" target="_blank" rel="noopener">View / Download</a></div></div>`).join('');
+        } catch(e) { container.innerHTML='<p>Server se documents load nahi ho paye.</p>'; }
+    }
 
-        // Sirf wahi documents filter karein jo ishi logged-in user ke mobile ke liye bheje gaye hain
-        let myDocs = issuedList.filter(doc => doc.targetMobile === loggedInMobile);
 
-        if(myDocs.length === 0) {
-            container.innerHTML = `<p style="color: #777; text-align: center; padding: 15px;">Abhi tak aapke liye koi document nahi bheja gaya hai.</p>`;
-            return;
-        }
+    function escapePortalText(value) {
+        return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[c]));
+    }
 
-        container.innerHTML = myDocs.map((doc) => {
-            // Original index nikalna taaki delete karte waqt main array se sahi item remove ho
-            let realIndex = issuedList.findIndex(item => item === doc);
-
-            return `
-                <div class="doc-card">
-                    <div>
-                        <strong>${doc.title}</strong><br>
-                        <small style="color: #555;">File: ${doc.fileName} | Issued on: ${doc.date}</small>
-                    </div>
-                    <div style="display: flex; gap: 5px;">
-                        <button onclick='viewDocument(${JSON.stringify(doc)})' class="btn-action btn-view">View</button>
-                        <a href="${doc.fileUrl}" download="${doc.fileName}" class="btn-action btn-download">Download</a>
-                        <button onclick="deleteIssuedDoc(${realIndex})" class="btn-action btn-delete">Delete</button>
-                    </div>
-                </div>
-            `;
-        }).join('');
+    async function loadMyApplications() {
+        const container=document.getElementById("myApplicationsList");
+        try {
+            const response=await fetch('/api/my-applications',{credentials:'same-origin'});
+            if(!response.ok) throw new Error('Could not load applications');
+            const result=await response.json(); const rows=result.data||[];
+            if(!rows.length){container.innerHTML='<p style="color:#777;text-align:center;padding:15px;">Abhi tak koi application submit nahi ki gayi hai.</p>';return;}
+            container.innerHTML=rows.map(item=>`<div class="doc-card"><div><strong>${escapePortalText(item.service_name||item.serviceName||item.service_name||'Service')}</strong><br><small>${escapePortalText(item.description||'')}</small><br><small>Status: <b>${escapePortalText(item.status||'Pending')}</b></small></div><div><small>${escapePortalText(item.created_at||'')}</small></div></div>`).join('');
+        } catch(e) { container.innerHTML='<p>Applications load nahi ho payi.</p>'; }
     }
 
     function viewDocument(doc) {
@@ -399,13 +389,8 @@
         document.getElementById("viewModal").style.display = "none";
     }
 
-    function deleteIssuedDoc(realIndex) {
-        if(confirm("Kya aap is document ko delete karna chahte hain?")) {
-            let issuedList = JSON.parse(localStorage.getItem("userIssuedDocs")) || [];
-            issuedList.splice(realIndex, 1);
-            localStorage.setItem("userIssuedDocs", JSON.stringify(issuedList));
-            loadIssuedDocuments();
-        }
+    function deleteIssuedDoc() {
+        alert("Issued documents can only be removed by an administrator.");
     }
 </script>
 

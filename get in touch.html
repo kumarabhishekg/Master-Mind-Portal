@@ -160,36 +160,16 @@
     let currentSenderMobile = "Direct User";
     let currentSenderName = "Portal Visitor";
 
-    window.onload = function() {
-        const isLoggedin = localStorage.getItem("isLoggedIn");
-        const savedMobile = localStorage.getItem("loggedInUserMobile");
-        const savedName = localStorage.getItem("loggedInUserName");
-        const authLink = document.getElementById("authLink");
-        const nameSpan = document.getElementById("displaySenderName");
-
-        if (isLoggedin === "true" && savedMobile) {
-            currentSenderMobile = savedMobile;
-            currentSenderName = savedName || "User";
-            if(nameSpan) nameSpan.innerText = `${currentSenderName} (${currentSenderMobile})`;
-            
-            if(authLink) {
-                authLink.innerText = "LOGOUT";
-                authLink.onclick = function(e) {
-                    e.preventDefault();
-                    localStorage.removeItem("isLoggedIn");
-                    localStorage.removeItem("loggedInUserName");
-                    localStorage.removeItem("loggedInUserMobile");
-                    alert("Logged out successfully!");
-                    window.location.href = "HOME.html";
-                };
-            }
-        } else {
-            if(nameSpan) nameSpan.innerText = "Direct Visitor";
-            if(authLink) {
-                authLink.innerText = "LOGIN";
-                authLink.href = "login.html";
-            }
-        }
+    window.onload = async function() {
+        const authLink=document.getElementById("authLink");
+        const nameSpan=document.getElementById("displaySenderName");
+        try {
+            const r=await fetch("/api/me",{credentials:"same-origin"});
+            if(!r.ok) throw new Error("Login required");
+            const data=await r.json(); currentSenderMobile=data.user.mobile; currentSenderName=data.user.name;
+            if(nameSpan) nameSpan.innerText=`${currentSenderName} (${currentSenderMobile})`;
+            if(authLink){authLink.innerText="LOGOUT";authLink.href="#";authLink.onclick=async e=>{e.preventDefault();await fetch("/api/logout",{method:"POST",credentials:"same-origin"});location.href="HOME.html";};}
+        } catch(e) { currentSenderMobile=""; currentSenderName=""; if(nameSpan)nameSpan.innerText="Login required for document submission"; if(authLink){authLink.innerText="LOGIN";authLink.href="login.html";} }
     };
 
     function showFileName(input) {
@@ -213,7 +193,7 @@
         formData.append("description", desc || "");
 
         try {
-            let response = await fetch("http://127.0.0.1:8000/api/upload", {
+            let response = await fetch("/api/upload", {
                 method: "POST",
                 body: formData
             });
@@ -223,14 +203,7 @@
             } else {
                 throw new Error(result.message || "Upload failed");
             }
-        } catch (err) {
-            console.error("Server upload error, falling back to base64:", err);
-            return await new Promise((resolve) => {
-                let reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.readAsDataURL(file);
-            });
-        }
+        } catch (err) { console.error("Cloud upload failed:",err); throw err; }
     }
 
     async function submitContactForm(event) {
@@ -251,6 +224,7 @@
             return false;
         }
 
+        if (!currentSenderMobile) { alert("Documents submit karne ke liye login karein."); location.href="login.html"; return false; }
         let senderInfo = currentSenderName + " (" + currentSenderMobile + ")";
         let uploadedUrls = [];
         let fileNamesList = [];
@@ -262,7 +236,8 @@
                 if (serverUrl) uploadedUrls.push(serverUrl);
             }
         } catch (err) {
-            console.warn("File upload error:", err);
+            alert("Google Drive upload fail hua: " + err.message);
+            submitBtn.disabled=false; submitBtn.innerText="🚀 Submit Request (₹100)"; return false;
         }
 
         let fileInfoText = fileNamesList.length > 0 ? ` | Files: ${fileNamesList.join(", ")}` : " | No File";
@@ -281,11 +256,9 @@
             status: "Pending"
         };
 
-        let existingApplications = JSON.parse(localStorage.getItem("bankingApplications")) || [];
-
         try {
-            existingApplications.push(applicationData);
-            localStorage.setItem("bankingApplications", JSON.stringify(existingApplications));
+            const saveResponse=await fetch("/api/applications",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(applicationData)});
+            if(!saveResponse.ok) throw new Error("Cloud database save failed");
             alert("✅ Aapka message aur files safaltapurvak server par submit ho gaye hain (Fee: ₹100)!");
             window.location.href = "H login.html";
         } catch (storageError) {
